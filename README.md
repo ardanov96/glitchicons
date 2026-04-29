@@ -103,7 +103,7 @@ Need AI-powered security assessment for your startup or fintech?
 
 ## License
 
-MIT License © 2026 ARDATRON
+MIT License © 2026 GLITCHICONS
 
 > As MEGATRON forged the Constructicons —
 > ARDATRON forged GLITCHICONS.
