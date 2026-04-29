@@ -1,0 +1,24 @@
+# Glitchicons — Python dependencies
+# Install: pip install -r requirements.txt
+
+# Core
+click>=8.1.0          # CLI framework
+rich>=13.0.0          # Terminal output formatting
+pydantic>=2.0.0       # Config & data validation
+python-dotenv>=1.0.0  # .env file support
+
+# LLM Integration (choose one or both)
+anthropic>=0.25.0     # Claude API (optional)
+openai>=1.0.0         # OpenAI API (optional)
+# ollama              # Local LLM via Ollama — install separately
+
+# Fuzzing support
+# afl++               # Install via system package manager
+# libfuzzer           # Part of LLVM/Clang
+
+# Analysis
+psutil>=5.9.0         # Process monitoring
+
+# Reporting
+jinja2>=3.1.0         # Report templates
+markdown>=3.5.0       # Markdown rendering

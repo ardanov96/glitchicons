@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+.env.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Fuzzing outputs — can be large
+corpus/
+crashes/
+hangs/
+queue/
+findings/
+*.afl
+
+# LLM / model cache
+.cache/
+models/
+*.gguf
+*.bin
+
+# Logs
+*.log
+logs/
+
+# Reports output (generated, not source)
+reports/output/
+
+# OS
+Thumbs.db
