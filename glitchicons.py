@@ -452,3 +452,55 @@ def siege(target, corpus, output, interval, duration, model, stats):
         console.print(f"\n[bold]Session Summary:[/bold]")
         for k, v in summary.items():
             console.print(f"  [dim]{k}:[/dim] {v}")
+
+
+# ── CODE MAPPER ───────────────────────────────────────────────────────────────
+
+@cli.command(name="map")
+@click.argument("source", type=click.Path(exists=True))
+@click.option("--output", "-o", type=click.Path(),
+              default="./cfg_reports",
+              help="Output directory for CFG report")
+@click.option("--model", "-m", type=str, default="qwen2.5-coder:3b")
+@click.option("--seed", "gen_seeds", is_flag=True, default=False,
+              help="Auto-generate targeted seeds after analysis")
+def map_cmd(source, output, model, gen_seeds):
+    """
+    Build CFG from SOURCE and identify high-value attack paths.
+
+    Parses source code → Control Flow Graph → attack scores →
+    interactive HTML visualization → seed generation hints.
+
+    Requirements: pip install networkx
+
+    Examples:
+
+        glitchicons map ./target.c
+
+        glitchicons map ./target.c --seed
+
+        glitchicons map ./app.py --output ./my_cfg
+    """
+    try:
+        from code_mapper import CodeMapper
+    except ImportError as e:
+        console.print(f"[red]✗ {e}[/red]")
+        console.print("[dim]  pip install networkx[/dim]")
+        return
+
+    mapper = CodeMapper(output_dir=output, model=model)
+    results = mapper.analyze(source)
+
+    if not results:
+        return
+
+    # Auto-generate seeds if requested
+    if gen_seeds and results.get("seed_hints"):
+        console.print("\n[purple]⬡ Generating targeted seeds from CFG analysis...[/purple]")
+        from seed_generator import SeedGenerator
+
+        gen = SeedGenerator(model=model, output_dir="./corpus", seed_count=15)
+
+        # Use the source file directly for AST-guided seed gen
+        gen.from_source(source)
+        console.print(f"[green]⬡ Seeds generated in ./corpus[/green]")
