@@ -399,108 +399,61 @@ def status():
     console.print()
 
 
-if __name__ == "__main__":
-    cli()
-
-
-# ── RL AGENT ──────────────────────────────────────────────────────────────────
-
 @cli.command()
 @click.argument("target", type=click.Path(exists=True))
-@click.option("--corpus", "-c", type=click.Path(), default="./corpus")
-@click.option("--output", "-o", type=click.Path(), default="./findings")
-@click.option("--interval", "-i", type=int, default=60,
-              help="Seconds per strategy interval (default: 60)")
-@click.option("--duration", "-d", type=int, default=3600,
-              help="Total fuzzing duration in seconds (default: 3600)")
-@click.option("--model", "-m", type=str, default="qwen2.5-coder:3b")
-@click.option("--stats", is_flag=True, default=False,
-              help="Show agent stats only, do not fuzz")
+@click.option("--corpus", "-c", default="./corpus")
+@click.option("--output", "-o", default="./findings")
+@click.option("--interval", "-i", type=int, default=60)
+@click.option("--duration", "-d", type=int, default=3600)
+@click.option("--model", "-m", default="qwen2.5-coder:3b")
+@click.option("--stats", is_flag=True, default=False)
 def siege(target, corpus, output, interval, duration, model, stats):
-    """
-    Launch RL-guided adaptive fuzzing siege against TARGET.
-
-    The RL agent learns which mutation strategies yield the most
-    coverage for this specific target — getting smarter over time.
-
-    Examples:
-
-        glitchicons siege ./binary
-
-        glitchicons siege ./binary --interval 120 --duration 7200
-
-        glitchicons siege ./binary --stats
-    """
+    """Launch RL-guided adaptive fuzzing siege."""
     from rl_agent import RLFuzzingOrchestrator, QLearningAgent
-
     if stats:
-        agent = QLearningAgent()
-        agent.print_stats()
+        QLearningAgent().print_stats()
         return
+    RLFuzzingOrchestrator(target, corpus, output, interval, duration, model).run()
 
-    orchestrator = RLFuzzingOrchestrator(
-        target_binary=target,
-        corpus_dir=corpus,
-        output_dir=output,
-        interval_seconds=interval,
-        total_duration=duration,
-        model=model,
-    )
-    summary = orchestrator.run()
-
-    if summary:
-        console.print(f"\n[bold]Session Summary:[/bold]")
-        for k, v in summary.items():
-            console.print(f"  [dim]{k}:[/dim] {v}")
-
-
-# ── CODE MAPPER ───────────────────────────────────────────────────────────────
 
 @cli.command(name="map")
 @click.argument("source", type=click.Path(exists=True))
-@click.option("--output", "-o", type=click.Path(),
-              default="./cfg_reports",
-              help="Output directory for CFG report")
-@click.option("--model", "-m", type=str, default="qwen2.5-coder:3b")
-@click.option("--seed", "gen_seeds", is_flag=True, default=False,
-              help="Auto-generate targeted seeds after analysis")
+@click.option("--output", "-o", default="./cfg_reports")
+@click.option("--model", "-m", default="qwen2.5-coder:3b")
+@click.option("--seed", "gen_seeds", is_flag=True, default=False)
 def map_cmd(source, output, model, gen_seeds):
-    """
-    Build CFG from SOURCE and identify high-value attack paths.
-
-    Parses source code → Control Flow Graph → attack scores →
-    interactive HTML visualization → seed generation hints.
-
-    Requirements: pip install networkx
-
-    Examples:
-
-        glitchicons map ./target.c
-
-        glitchicons map ./target.c --seed
-
-        glitchicons map ./app.py --output ./my_cfg
-    """
+    """Build CFG and identify high-value attack paths."""
     try:
         from code_mapper import CodeMapper
-    except ImportError as e:
-        console.print(f"[red]✗ {e}[/red]")
-        console.print("[dim]  pip install networkx[/dim]")
+    except ImportError:
+        console.print("[red]pip install networkx[/red]")
         return
-
-    mapper = CodeMapper(output_dir=output, model=model)
-    results = mapper.analyze(source)
-
-    if not results:
-        return
-
-    # Auto-generate seeds if requested
-    if gen_seeds and results.get("seed_hints"):
-        console.print("\n[purple]⬡ Generating targeted seeds from CFG analysis...[/purple]")
+    CodeMapper(output, model).analyze(source)
+    if gen_seeds:
         from seed_generator import SeedGenerator
+        SeedGenerator(model=model, output_dir="./corpus", seed_count=15).from_source(source)
 
-        gen = SeedGenerator(model=model, output_dir="./corpus", seed_count=15)
 
-        # Use the source file directly for AST-guided seed gen
-        gen.from_source(source)
-        console.print(f"[green]⬡ Seeds generated in ./corpus[/green]")
+@cli.command()
+@click.option("--reports", "-r", default="./reports")
+@click.option("--protocol", "-p", default="./protocol_findings")
+@click.option("--output", "-o", default="./exported_reports")
+@click.option("--format", "-f", "fmt",
+              type=click.Choice(["all","h1","bugcrowd","internal","json"]),
+              default="all")
+@click.option("--program", default="")
+@click.option("--org", default="")
+@click.option("--model", "-m", default="qwen2.5-coder:3b")
+@click.option("--no-enrich", is_flag=True, default=False)
+def export(reports, protocol, output, fmt, program, org, model, no_enrich):
+    """Export findings to HackerOne, Bugcrowd, or internal format."""
+    from report_exporter import AutoReportExporter
+    formats = ["h1","bugcrowd","internal","json"] if fmt=="all" else [fmt]
+    exporter = AutoReportExporter(output, model, program, org)
+    summary = exporter.export_all(reports, protocol, formats, not no_enrich)
+    if summary:
+        console.print(f"[green]Done: {summary.get('total_findings', 0)} findings exported[/green]")
+
+
+if __name__ == "__main__":
+    cli()
