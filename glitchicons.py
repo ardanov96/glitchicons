@@ -401,3 +401,54 @@ def status():
 
 if __name__ == "__main__":
     cli()
+
+
+# ── RL AGENT ──────────────────────────────────────────────────────────────────
+
+@cli.command()
+@click.argument("target", type=click.Path(exists=True))
+@click.option("--corpus", "-c", type=click.Path(), default="./corpus")
+@click.option("--output", "-o", type=click.Path(), default="./findings")
+@click.option("--interval", "-i", type=int, default=60,
+              help="Seconds per strategy interval (default: 60)")
+@click.option("--duration", "-d", type=int, default=3600,
+              help="Total fuzzing duration in seconds (default: 3600)")
+@click.option("--model", "-m", type=str, default="qwen2.5-coder:3b")
+@click.option("--stats", is_flag=True, default=False,
+              help="Show agent stats only, do not fuzz")
+def siege(target, corpus, output, interval, duration, model, stats):
+    """
+    Launch RL-guided adaptive fuzzing siege against TARGET.
+
+    The RL agent learns which mutation strategies yield the most
+    coverage for this specific target — getting smarter over time.
+
+    Examples:
+
+        glitchicons siege ./binary
+
+        glitchicons siege ./binary --interval 120 --duration 7200
+
+        glitchicons siege ./binary --stats
+    """
+    from rl_agent import RLFuzzingOrchestrator, QLearningAgent
+
+    if stats:
+        agent = QLearningAgent()
+        agent.print_stats()
+        return
+
+    orchestrator = RLFuzzingOrchestrator(
+        target_binary=target,
+        corpus_dir=corpus,
+        output_dir=output,
+        interval_seconds=interval,
+        total_duration=duration,
+        model=model,
+    )
+    summary = orchestrator.run()
+
+    if summary:
+        console.print(f"\n[bold]Session Summary:[/bold]")
+        for k, v in summary.items():
+            console.print(f"  [dim]{k}:[/dim] {v}")
