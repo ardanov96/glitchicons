@@ -1,21 +1,20 @@
 """
-GLITCHICONS ⬡ — Seed Generator Module
+GLITCHICONS ⬡ — Seed Generator Module v2
 Decepticons Siege Division
 
-Takes source code or a target description → 
-sends to local LLM (Ollama) → 
-returns targeted malformed seed inputs for AFL++
+Upgraded with:
+- Semantic deduplication (not just MD5)
+- AST-based code context (smarter LLM prompts)
+- Session memory integration (learns what works)
 """
 
 import os
-import json
 import hashlib
 from pathlib import Path
 from typing import Optional
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.panel import Panel
-from rich.syntax import Syntax
 
 try:
     import ollama
@@ -23,62 +22,45 @@ try:
 except ImportError:
     OLLAMA_AVAILABLE = False
 
+from glitchicons_brain import SemanticDedup, CodeContextExtractor, GlitchiconsBrain
+
 console = Console()
 
-# ── PROMPTS ────────────────────────────────────────────────────────────────
+PROMPT_FROM_CONTEXT = """You are a security researcher and expert fuzzer.
+Analyze this security context extracted from a target program and generate
+{count} malformed inputs that could trigger crashes or vulnerabilities.
 
-PROMPT_FROM_SOURCE = """You are a security researcher and expert fuzzer.
-Analyze the following source code and generate {count} malformed inputs 
-that could trigger crashes, buffer overflows, integer overflows, 
-use-after-free, or other memory corruption bugs.
+{context}
 
 Focus on:
-- Boundary values (INT_MAX, INT_MIN, 0, -1, empty strings)
-- Format string injection (%s %x %n %p)
-- Very long strings (100, 1000, 10000 chars)
-- Null bytes embedded in strings
-- Invalid encoding (non-UTF8, binary data)
-- Nested/recursive structures that cause stack overflow
-- Type confusion inputs
+- Inputs that target the dangerous functions identified above
+- Values that exceed buffer sizes found
+- Malformed versions of expected input format
+- Boundary values for the target language/format
 
-Source code to analyze:
-{code}
-
-Return ONLY the raw inputs, one per line, no explanation, no numbering.
-Each input should be on its own line.
-Binary/null bytes can be represented as \\x00, \\xff etc."""
+Return ONLY the raw inputs, one per line, no explanation, no numbering."""
 
 PROMPT_FROM_TYPE = """You are a security researcher and expert fuzzer.
 Generate {count} malformed inputs to fuzz a {target_type} parser/handler.
 
-Focus on edge cases that commonly cause crashes:
-- Boundary conditions
-- Malformed structure 
-- Unexpected types
-- Deeply nested content
-- Extremely long values
-- Special characters and null bytes
-- Format string sequences
+Previously effective payloads for this target type (learn from these):
+{recalled_payloads}
 
-Return ONLY the raw inputs, one per line, no explanation, no numbering."""
+Generate NEW diverse inputs — not copies of the above. Focus on:
+- Boundary conditions and edge cases
+- Malformed structure and encoding
+- Deeply nested or recursive content
+- Special characters, null bytes, format strings
+- Type confusion and unexpected values
 
-PROMPT_BINARY_PATTERNS = """You are a security researcher specializing in binary fuzzing.
-Generate {count} binary mutation patterns for fuzzing.
+Return ONLY the raw inputs, one per line, no explanation."""
 
-The target is: {description}
-
-Generate inputs as hex sequences (e.g. 41414141, ff00ff00).
-Return ONLY hex strings, one per line, no explanation."""
-
-
-# ── SEED GENERATOR CLASS ────────────────────────────────────────────────────
 
 class SeedGenerator:
     """
-    LLM-powered seed generator for AFL++ fuzzing campaigns.
+    LLM-powered seed generator v2.
     
-    Analyzes source code or target description and generates
-    semantically-aware malformed inputs as seed corpus.
+    Now with semantic dedup, AST parsing, and session memory.
     """
 
     def __init__(
@@ -86,237 +68,206 @@ class SeedGenerator:
         model: str = "qwen2.5-coder:3b",
         output_dir: str = "./corpus",
         seed_count: int = 20,
+        similarity_threshold: float = 0.75,
+        memory_file: str = "~/.glitchicons/brain.json",
     ):
         self.model = model
         self.output_dir = Path(output_dir)
         self.seed_count = seed_count
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Core improvements
+        self.dedup = SemanticDedup(similarity_threshold)
+        self.extractor = CodeContextExtractor()
+        self.brain = GlitchiconsBrain(memory_file)
+
     def _check_ollama(self) -> bool:
-        """Verify Ollama is running and model is available."""
         if not OLLAMA_AVAILABLE:
-            console.print("[red]✗ ollama Python package not installed.[/red]")
-            console.print("[dim]  Run: pip install ollama[/dim]")
+            console.print("[red]✗ pip install ollama[/red]")
             return False
         try:
             models = ollama.list()
             available = [m.model for m in models.models]
-            # Check if our model is available (handle version tags)
             model_base = self.model.split(":")[0]
-            found = any(model_base in m for m in available)
-            if not found:
-                console.print(f"[red]✗ Model '{self.model}' not found.[/red]")
-                console.print(f"[dim]  Run: ollama pull {self.model}[/dim]")
-                console.print(f"[dim]  Available: {available}[/dim]")
+            if not any(model_base in m for m in available):
+                console.print(f"[red]✗ Model '{self.model}' not found[/red]")
+                console.print(f"[dim]  ollama pull {self.model}[/dim]")
                 return False
             return True
         except Exception as e:
             console.print(f"[red]✗ Ollama not running: {e}[/red]")
-            console.print("[dim]  Run: sudo systemctl start ollama[/dim]")
             return False
 
     def _query_llm(self, prompt: str) -> Optional[str]:
-        """Send prompt to LLM, return raw response."""
         try:
-            response = ollama.chat(
+            r = ollama.chat(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                options={
-                    "temperature": 0.8,   # some creativity for diverse seeds
-                    "num_predict": 2048,
-                }
+                options={"temperature": 0.85, "num_predict": 2048}
             )
-            return response["message"]["content"]
+            return r["message"]["content"]
         except Exception as e:
             console.print(f"[red]LLM query failed: {e}[/red]")
             return None
 
-    def _parse_seeds(self, raw: str) -> list[str]:
-        """
-        Parse LLM response into individual seed strings.
-        Handles: code blocks, numbering, blank lines.
-        """
+    def _parse_raw(self, raw: str) -> list[str]:
+        """Parse LLM response into individual seeds."""
+        import re
         lines = raw.strip().split("\n")
         seeds = []
-
         for line in lines:
             line = line.strip()
-
-            # Skip empty lines
-            if not line:
+            if not line or line.startswith("```"):
                 continue
-
-            # Skip markdown code fences
-            if line.startswith("```"):
-                continue
-
-            # Strip numbering: "1. ", "1) ", "- "
-            import re
-            line = re.sub(r"^\d+[\.\)]\s*", "", line)
-            line = re.sub(r"^[-*]\s*", "", line)
-
+            line = re.sub(r"^\d+[\.\)]\s*|^[-*]\s*", "", line)
             if line:
                 seeds.append(line)
-
         return seeds
 
     def _save_seeds(self, seeds: list[str], prefix: str = "seed") -> list[Path]:
-        """Save seeds to corpus directory, return list of saved paths."""
+        """Save deduplicated seeds to corpus directory."""
         saved = []
         for i, seed in enumerate(seeds):
-            # Handle hex seeds
-            if all(c in "0123456789abcdefABCDEF" for c in seed.replace(" ", "")):
-                try:
-                    content = bytes.fromhex(seed.replace(" ", ""))
-                    ext = ".bin"
-                except ValueError:
-                    content = seed.encode("utf-8", errors="replace")
-                    ext = ".txt"
-            else:
-                # Process escape sequences
-                content = seed.encode("utf-8", errors="replace")
-                ext = ".txt"
-
-            # Use hash as filename to avoid duplicates
+            content = seed.encode("utf-8", errors="replace")
             h = hashlib.md5(content).hexdigest()[:8]
-            filename = self.output_dir / f"{prefix}_{i:03d}_{h}{ext}"
-
+            filename = self.output_dir / f"{prefix}_{i:03d}_{h}.txt"
             with open(filename, "wb") as f:
                 f.write(content)
             saved.append(filename)
-
-        return saved
-
-    # ── PUBLIC METHODS ────────────────────────────────────────────────────
-
-    def from_source(self, source_path: str) -> list[Path]:
-        """
-        Generate seeds by analyzing source code.
-        
-        Args:
-            source_path: Path to C/C++/Python/etc source file
-            
-        Returns:
-            List of paths to generated seed files
-        """
-        source = Path(source_path)
-        if not source.exists():
-            console.print(f"[red]✗ Source file not found: {source_path}[/red]")
-            return []
-
-        code = source.read_text(errors="replace")
-
-        console.print(Panel(
-            f"[bold purple]⬡ SEED GENERATOR[/bold purple]\n"
-            f"[dim]Source:[/dim] {source_path}\n"
-            f"[dim]Model :[/dim] {self.model}\n"
-            f"[dim]Seeds :[/dim] {self.seed_count}\n"
-            f"[dim]Output:[/dim] {self.output_dir}",
-            border_style="purple"
-        ))
-
-        if not self._check_ollama():
-            return []
-
-        prompt = PROMPT_FROM_SOURCE.format(
-            count=self.seed_count,
-            code=code[:4000]  # limit context window
-        )
-
-        with Progress(
-            SpinnerColumn(style="purple"),
-            TextColumn("[purple]{task.description}"),
-            console=console
-        ) as progress:
-            task = progress.add_task("Generating seeds via LLM...", total=None)
-            raw = self._query_llm(prompt)
-            progress.update(task, description="Parsing response...")
-
-        if not raw:
-            return []
-
-        seeds = self._parse_seeds(raw)
-        console.print(f"[green]✓ LLM generated {len(seeds)} seed candidates[/green]")
-
-        saved = self._save_seeds(seeds, prefix="src")
-        console.print(f"[green]✓ Saved {len(saved)} seeds to {self.output_dir}[/green]")
-
-        self._show_preview(seeds[:5])
-        return saved
-
-    def from_type(self, target_type: str) -> list[Path]:
-        """
-        Generate seeds for a known input type (JSON, XML, HTTP, etc).
-        
-        Args:
-            target_type: Type of input (json, xml, http, binary, csv, etc)
-            
-        Returns:
-            List of paths to generated seed files
-        """
-        console.print(Panel(
-            f"[bold purple]⬡ SEED GENERATOR[/bold purple]\n"
-            f"[dim]Type  :[/dim] {target_type}\n"
-            f"[dim]Model :[/dim] {self.model}\n"
-            f"[dim]Seeds :[/dim] {self.seed_count}\n"
-            f"[dim]Output:[/dim] {self.output_dir}",
-            border_style="purple"
-        ))
-
-        if not self._check_ollama():
-            return []
-
-        prompt = PROMPT_FROM_TYPE.format(
-            count=self.seed_count,
-            target_type=target_type
-        )
-
-        with Progress(
-            SpinnerColumn(style="purple"),
-            TextColumn("[purple]{task.description}"),
-            console=console
-        ) as progress:
-            task = progress.add_task(f"Generating {target_type} seeds...", total=None)
-            raw = self._query_llm(prompt)
-            progress.update(task, description="Parsing response...")
-
-        if not raw:
-            return []
-
-        seeds = self._parse_seeds(raw)
-        console.print(f"[green]✓ LLM generated {len(seeds)} seed candidates[/green]")
-
-        saved = self._save_seeds(seeds, prefix=target_type)
-        console.print(f"[green]✓ Saved {len(saved)} seeds to {self.output_dir}[/green]")
-
-        self._show_preview(seeds[:5])
         return saved
 
     def _show_preview(self, seeds: list[str]):
-        """Show preview of first few seeds in terminal."""
         console.print("\n[bold]Preview (first 5 seeds):[/bold]")
-        for i, seed in enumerate(seeds, 1):
-            # Truncate long seeds for display
+        for i, seed in enumerate(seeds[:5], 1):
             display = seed[:80] + "..." if len(seed) > 80 else seed
             console.print(f"  [dim]{i}.[/dim] [cyan]{display}[/cyan]")
         console.print()
 
+    def from_source(self, source_path: str) -> list[Path]:
+        """
+        Generate seeds by analyzing source code via AST.
+        Uses CodeContextExtractor for targeted LLM prompts.
+        """
+        console.print(Panel(
+            f"[bold purple]⬡ SEED GENERATOR v2[/bold purple]\n"
+            f"[dim]Source :[/dim] {source_path}\n"
+            f"[dim]Model  :[/dim] {self.model}\n"
+            f"[dim]Seeds  :[/dim] {self.seed_count}\n"
+            f"[dim]Output :[/dim] {self.output_dir}",
+            border_style="purple"
+        ))
 
-# ── STANDALONE TEST ─────────────────────────────────────────────────────────
+        if not self._check_ollama():
+            return []
+
+        # AST extraction — smarter context
+        console.print("[dim]→ Extracting code context via AST...[/dim]")
+        ctx = self.extractor.extract(source_path)
+        context_prompt = self.extractor.to_llm_prompt(ctx)
+        console.print(f"[dim]  Found: {len(ctx.get('dangerous_calls', {}))} dangerous call categories[/dim]")
+
+        prompt = PROMPT_FROM_CONTEXT.format(
+            count=self.seed_count,
+            context=context_prompt
+        )
+
+        # Recall from brain memory
+        file_ext = Path(source_path).suffix.replace('.', '')
+        recalled = self.brain.recall_for_target(f"source_{file_ext}")
+
+        with Progress(SpinnerColumn(style="purple"),
+                      TextColumn("[purple]{task.description}"),
+                      console=console) as p:
+            t = p.add_task("Generating seeds via LLM...", total=None)
+            raw = self._query_llm(prompt)
+            p.update(t, description="Parsing + deduplicating...")
+
+        if not raw:
+            return []
+
+        # Parse and deduplicate
+        raw_seeds = self._parse_raw(raw)
+        # Prepend recalled effective seeds
+        all_seeds = recalled + raw_seeds
+        unique_seeds = self.dedup.filter_batch(all_seeds)
+
+        console.print(f"[green]✓ {len(unique_seeds)} unique seeds (from {len(all_seeds)} candidates)[/green]")
+
+        saved = self._save_seeds(unique_seeds, prefix="src")
+        console.print(f"[green]✓ Saved {len(saved)} seeds to {self.output_dir}[/green]")
+        self._show_preview(unique_seeds)
+
+        # Record session
+        self.brain.record_session_start(f"source_{file_ext}")
+        return saved
+
+    def from_type(self, target_type: str) -> list[Path]:
+        """
+        Generate seeds for a known input type.
+        Recalls effective payloads from brain memory.
+        """
+        console.print(Panel(
+            f"[bold purple]⬡ SEED GENERATOR v2[/bold purple]\n"
+            f"[dim]Type   :[/dim] {target_type}\n"
+            f"[dim]Model  :[/dim] {self.model}\n"
+            f"[dim]Seeds  :[/dim] {self.seed_count}\n"
+            f"[dim]Output :[/dim] {self.output_dir}",
+            border_style="purple"
+        ))
+
+        if not self._check_ollama():
+            return []
+
+        # Recall from brain
+        recalled = self.brain.recall_for_target(target_type)
+        recalled_str = "\n".join(f"- {p}" for p in recalled[:5]) if recalled \
+                       else "(no prior knowledge — generating fresh)"
+
+        prompt = PROMPT_FROM_TYPE.format(
+            count=self.seed_count,
+            target_type=target_type,
+            recalled_payloads=recalled_str
+        )
+
+        with Progress(SpinnerColumn(style="purple"),
+                      TextColumn("[purple]{task.description}"),
+                      console=console) as p:
+            t = p.add_task(f"Generating {target_type} seeds...", total=None)
+            raw = self._query_llm(prompt)
+            p.update(t, description="Parsing + deduplicating...")
+
+        if not raw:
+            return []
+
+        raw_seeds = self._parse_raw(raw)
+        all_seeds = recalled + raw_seeds
+        unique_seeds = self.dedup.filter_batch(all_seeds)
+
+        console.print(f"[green]✓ {len(unique_seeds)} unique seeds (from {len(all_seeds)} candidates)[/green]")
+        saved = self._save_seeds(unique_seeds, prefix=target_type)
+        console.print(f"[green]✓ Saved {len(saved)} seeds to {self.output_dir}[/green]")
+        self._show_preview(unique_seeds)
+
+        self.brain.record_session_start(target_type)
+        return saved
+
+    def record_crash(self, target_type: str, crash_type: str, payload: str):
+        """Feed crash result back into brain memory."""
+        self.brain.record_crash(target_type, crash_type, payload)
+        console.print(f"[purple]⬡ Brain updated:[/purple] recorded {crash_type} for '{target_type}'")
+
+    def brain_stats(self):
+        """Show brain statistics."""
+        self.brain.print_stats()
+
 
 if __name__ == "__main__":
-    import sys
-
     gen = SeedGenerator(
         model="qwen2.5-coder:3b",
         output_dir="./corpus_test",
         seed_count=10,
+        similarity_threshold=0.75,
     )
-
-    if len(sys.argv) > 1:
-        # Test from source file
-        gen.from_source(sys.argv[1])
-    else:
-        # Default: test with JSON type
-        console.print("[bold magenta]Testing seed generator with JSON target...[/bold magenta]\n")
-        gen.from_type("JSON")
+    console.print("[bold magenta]Testing upgraded seed generator...[/bold magenta]\n")
+    gen.from_type("JSON")
+    gen.brain_stats()
