@@ -1,7 +1,8 @@
 # GLITCHICONS ⬡
-### Decepticons Siege Division — AI-Powered Fuzzing Intelligence
+### Decepticons Siege Division — AI-Powered Security Research Platform
 
-[![Status](https://img.shields.io/badge/status-early%20development-purple?style=flat-square)](https://github.com/ardanov96/glitchicons)
+[![Status](https://img.shields.io/badge/status-active%20development-blueviolet?style=flat-square)](https://github.com/ardanov96/glitchicons)
+[![Version](https://img.shields.io/badge/version-0.2.0--dev-purple?style=flat-square)](https://github.com/ardanov96/glitchicons)
 [![License](https://img.shields.io/badge/license-MIT-blueviolet?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-purple?style=flat-square)](https://python.org)
 [![Stars](https://img.shields.io/github/stars/ardanov96/glitchicons?style=flat-square&color=blueviolet)](https://github.com/ardanov96/glitchicons/stargazers)
@@ -12,84 +13,174 @@
 
 ## What is Glitchicons?
 
-Glitchicons is an open-source offensive fuzzing toolkit that combines **LLM-driven mutation** with **AFL++ execution** to find vulnerabilities that conventional scanners miss.
+Glitchicons is an open-source **AI security research platform** that combines large language model intelligence with adaptive fuzzing and automated vulnerability analysis.
 
-Instead of random input generation, Glitchicons uses large language models to analyze source code structure and generate semantically-aware malformed inputs — surgical precision, not noise.
+Unlike conventional fuzzers that throw random inputs at a target, Glitchicons **reads your target first** — using LLMs to understand code structure and generate precision attacks. The result is faster vulnerability discovery with less noise.
+
+```
+Conventional fuzzer:  random inputs → hope for crash
+Glitchicons:          read code → understand structure → targeted attack → crash → analysis → report
+```
+
+Built in public. MIT licensed. Designed for security researchers, red teams, and bug bounty hunters.
 
 ---
 
-## Planned Architecture
+## Architecture
 
 ```
 Source Code / Binary / Network Protocol
               ↓
-    ┌─────────────────────┐
-    │  GLITCHICONS CORE   │  ← LLM Orchestration + RAG
-    └─────────┬───────────┘
-              ↓
-    ┌──────────────────────────────────┐
-    │  Mutation Engine  │  Crash Triage │
-    │  (AI-Seeded AFL++)│  (ML Classify)│
-    └──────────────────────────────────┘
-              ↓
-    CVE Report  →  Coverage Map  →  Bounty Ready
+    ┌──────────────────────────────┐
+    │     GLITCHICONS SIEGE CORE   │
+    │   LLM Orchestration + RAG    │  ← Ollama / Claude API
+    └──────────────┬───────────────┘
+                   ↓
+    ┌──────────────────────────────────────┐
+    │  Seed Generator  │  AFL++ Runner     │
+    │  (LLM-guided)    │  (300k exec/sec)  │
+    └──────────────────────────────────────┘
+                   ↓
+    ┌──────────────────────────────────────┐
+    │  Crash Triage  │  GDB Analysis       │
+    │  (GDB + LLM)   │  (CWE + CVSS)      │
+    └──────────────────────────────────────┘
+                   ↓
+         CVE Report → Bounty Ready
 ```
 
 ---
 
-## Roadmap
+## Development Status
 
-| Phase | Module | Status |
-|-------|--------|--------|
-| 0 | Project structure & CLI skeleton | 🔄 In Progress |
-| 1 | AFL++ wrapper + Python orchestrator | 📋 Planned |
-| 2 | Ollama / LLM seed generation | 📋 Planned |
-| 3 | Crash collector + deduplication | 📋 Planned |
-| 4 | Auto report generation | 📋 Planned |
-| 5 | Protocol fuzzer (HTTP, TLS, DNS) | 📋 Planned |
-| 6 | RL Agent for coverage optimization | 📋 Planned |
-
----
-
-## Planned Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Orchestration | Python 3.10+ |
-| Fuzzing Engine | AFL++, libFuzzer |
-| LLM (local) | Ollama + DeepSeek / Qwen3-Coder |
-| LLM (cloud) | Claude API / OpenAI (optional) |
-| Performance | Rust |
-| Analysis | GDB, Valgrind, ASAN |
+| Module | Component | Status | Description |
+|--------|-----------|--------|-------------|
+| **0** | CLI Skeleton | ✅ **DONE** | `glitchicons status`, `seed`, `fuzz`, `report` commands |
+| **1** | LLM Seed Generator | ✅ **DONE** | Ollama + Qwen2.5-Coder → targeted corpus generation |
+| **2** | AFL++ Runner | ✅ **DONE** | AI-seeded AFL++ · 726 crashes in 5 min (PoC) |
+| **3** | Crash Triage | ✅ **DONE** | GDB + LLM classification → CVE-style report |
+| **4** | Protocol Fuzzer | 🔄 **In Progress** | HTTP, TLS, DNS, gRPC targeted fuzzing |
+| **5** | Coverage Map | 📋 Planned | LLVM/gcov visualization of code paths |
+| **6** | RL Agent | 📋 Planned | Reinforcement learning for adaptive mutation |
+| **7** | GNN Code Mapper | 📋 Planned | Graph Neural Network for code path prediction |
+| **8** | Auto Report Export | 📋 Planned | HackerOne / Bugcrowd formatted submission |
+| **9** | Glitchicons Cloud | 📋 Planned | SaaS — upload binary, get report |
 
 ---
 
-## Getting Started (Coming Soon)
+## Quick Start
+
+### Requirements
 
 ```bash
-# Clone
+# System dependencies (Ubuntu/WSL2)
+sudo apt install afl++ gdb python3 python3-pip python3-venv
+
+# Ollama — local LLM, no API key required
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen2.5-coder:3b
+```
+
+### Install
+
+```bash
 git clone https://github.com/ardanov96/glitchicons.git
 cd glitchicons
 
-# Install (coming soon)
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# Run
-glitchicons fuzz --target ./binary --mode ai
-# [⬡] GLITCHICONS SIEGE CORE ONLINE — BREACH COMMENCING
+pip install ollama
 ```
+
+### Usage
+
+```bash
+# Check environment
+python3 glitchicons.py status
+
+# Generate AI-powered seed corpus
+python3 glitchicons.py seed --type json --count 20
+python3 glitchicons.py seed --type http --count 15
+python3 glitchicons.py seed --source ./target.c --count 30
+
+# Run AFL++ with AI seeds
+python3 glitchicons.py fuzz ./target_binary
+
+# Triage crashes → CVE report
+python3 crash_triage.py ./target_binary ./findings/default/crashes
+```
+
+### Status check output
+
+```
+⬡ GLITCHICONS STATUS  v0.2.0-dev
+
+  AFL++        ✓ available    /usr/bin/afl-fuzz
+  Ollama       ✓ available    /usr/local/bin/ollama
+  Models       ✓ loaded       qwen2.5-coder:3b
+  Python       ✓ available    3.12.3
+  GDB          ✓ available    /usr/bin/gdb
+  Valgrind     ✓ available    /usr/bin/valgrind
+```
+
+---
+
+## Proof of Concept
+
+Tested against an intentionally vulnerable C binary (buffer overflow via `strcpy`):
+
+```
+Seeds generated : 60 files (JSON + HTTP + XML via LLM)
+AFL++ runtime   : 5 minutes
+Total crashes   : 726
+Unique crashes  : 1 saved (CWE-121: Stack Buffer Overflow)
+Exec speed      : ~300,000 / second
+Triage time     : < 30 seconds per crash
+Trigger         : HTTP seed generated by LLM
+```
+
+The LLM-generated HTTP payload triggered the overflow —
+demonstrating that semantically-aware seeds outperform random inputs.
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Status |
+|-------|-----------|--------|
+| CLI | Python 3.10+ · Click · Rich | ✅ Live |
+| Fuzzing Engine | AFL++ 4.09c | ✅ Live |
+| LLM — Local | Ollama + Qwen2.5-Coder / DeepSeek | ✅ Live |
+| Crash Analysis | GDB 15.x · Valgrind · ASAN | ✅ Live |
+| LLM — Cloud | Claude API / OpenAI (optional) | 📋 Planned |
+| Performance | Rust | 📋 Planned |
+| RL Agent | Stable Baselines3 · PyTorch | 📋 Planned |
+| GNN | PyTorch Geometric | 📋 Planned |
+
+---
+
+## Why Glitchicons?
+
+| | Conventional Fuzzer | Glitchicons |
+|--|--|--|
+| **Input strategy** | Random mutation | LLM-guided, code-aware |
+| **Crash analysis** | Manual | Automated GDB + LLM |
+| **Reports** | Raw crash dumps | CVE-style with CVSS |
+| **Learning** | Stateless | RL agent (roadmap) |
+| **Cost** | Free | Free (MIT) |
 
 ---
 
 ## Contributing
 
-Glitchicons is being built in public. Contributions, ideas, and feedback are welcome.
+Glitchicons is built in public. All skill levels welcome.
 
-- 🐛 Found a bug? [Open an issue](https://github.com/ardanov96/glitchicons/issues)
-- 💡 Have an idea? [Start a discussion](https://github.com/ardanov96/glitchicons/discussions)
-- 🔧 Want to contribute? Look for issues labeled `good-first-issue`
+- 🐛 **Bug?** [Open an issue](https://github.com/ardanov96/glitchicons/issues)
+- 💡 **Idea?** [Start a discussion](https://github.com/ardanov96/glitchicons/discussions)
+- 🔧 **Code?** Look for `good-first-issue` labels
 
-**Contributor ranks:** RECRUIT → OPERATIVE → COMMANDER → WARLORD
+**Contributor ranks:** `RECRUIT` → `OPERATIVE` → `COMMANDER` → `WARLORD`
 
 ---
 
@@ -97,7 +188,8 @@ Glitchicons is being built in public. Contributions, ideas, and feedback are wel
 
 Need AI-powered security assessment for your startup or fintech?
 
-→ **[glitchicons.io](https://ardanov96.github.io/glitch_landingpage/)** — Pentest services by ARDATRON
+→ **[glitchicons.io](https://ardanov96.github.io/GTCN/)** — Pentest services by ARDATRON
+→ Email: ardanov96@gmail.com
 
 ---
 
@@ -105,6 +197,8 @@ Need AI-powered security assessment for your startup or fintech?
 
 MIT License © 2026 GLITCHICONS
 
-> As MEGATRON forged the Constructicons —
-> ARDATRON forged GLITCHICONS.
-> Not to construct. To expose.
+---
+
+> *As MEGATRON forged the Constructicons from raw Cybertronian steel —*
+> *ARDATRON forged GLITCHICONS from code, chaos, and conviction.*
+> *Not to construct. To expose.*
