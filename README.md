@@ -274,7 +274,7 @@ Built in public. All skill levels welcome.
 
 Need AI-powered security assessment for your startup or fintech?
 
-→ **[glitchicons.io](https://ardanov96.github.io/GLTN/)** — Pentest services by ARDATRON
+→ **[glitchicons.io](https://ardanov96.github.io/GTCN/)** — Pentest services by GLITCHICONS
 → Contact: ardatron@glitchicons.io
 
 ---
