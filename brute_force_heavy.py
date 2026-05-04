@@ -201,5 +201,5 @@ if __name__ == "__main__":
         password_file="wordlists/rockyou_3m.txt",
         delay=1.0,
         max_minutes=60,
-        output_dir="engagements/ancient-wisdom/findings/bruteforce"
+        output_dir="engagements/[CLIENT]/findings/bruteforce"
     )

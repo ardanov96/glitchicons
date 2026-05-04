@@ -224,5 +224,5 @@ if __name__ == "__main__":
         password_file="wordlists/business_passwords.txt",
         delay=2.0,
         max_attempts=100,
-        output_dir="engagements/ancient-wisdom/findings/bruteforce"
+        output_dir="engagements/[CLIENT]/findings/bruteforce"
     )
