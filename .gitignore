@@ -47,3 +47,6 @@ reports/output/
 
 # OS
 Thumbs.db
+engagements/
+wordlists/rockyou*
+wordlists/10k*
