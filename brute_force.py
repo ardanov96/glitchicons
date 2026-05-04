@@ -57,7 +57,7 @@ def try_login(session, login_url, email, password, csrf_token):
         "Content-Type": "application/json",
         "Accept": "application/json",
         "X-XSRF-TOKEN": csrf_token,
-        "Referer": "https://v2.ancientwisdom.biz/app/login",
+        "Referer": f"{target}/app/login",
         "Origin": "https://target.example.com",
     }
     payload = {

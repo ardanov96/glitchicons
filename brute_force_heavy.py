@@ -1,6 +1,6 @@
 """
 GLITCHICONS ⬡ — Heavy Brute Force
-Client authorized: Ancient Wisdom Marketing Ltd
+Client authorized: [REDACTED]
 Test: 3M rockyou against single high-value target
 """
 
