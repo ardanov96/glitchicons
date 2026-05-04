@@ -66,3 +66,4 @@ wordlists/usernames.txt
 *.zip
 add_commands.py
 aw_corpus/
+wordlists/targeted_emails.txt
