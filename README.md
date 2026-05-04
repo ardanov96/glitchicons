@@ -2,10 +2,10 @@
 ### Decepticons Siege Division — AI-Powered Security Research Platform
 
 [![Status](https://img.shields.io/badge/status-active%20development-blueviolet?style=flat-square)](https://github.com/ardanov96/glitchicons)
-[![Version](https://img.shields.io/badge/version-0.4.0--dev-purple?style=flat-square)](https://github.com/ardanov96/glitchicons)
+[![Version](https://img.shields.io/badge/version-0.5.0--dev-purple?style=flat-square)](https://github.com/ardanov96/glitchicons)
 [![License](https://img.shields.io/badge/license-MIT-blueviolet?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-purple?style=flat-square)](https://python.org)
-[![Lines](https://img.shields.io/badge/codebase-7%2C000%2B%20lines-blueviolet?style=flat-square)](https://github.com/ardanov96/glitchicons)
+[![Stars](https://img.shields.io/github/stars/ardanov96/glitchicons?style=flat-square&color=blueviolet)](https://github.com/ardanov96/glitchicons/stargazers)
 
 > *Where others probe, we siege. Where others test, we break.*
 
@@ -13,39 +13,45 @@
 
 ## What is Glitchicons?
 
-Glitchicons is an open-source **AI security research platform** — not just a fuzzer.
+Glitchicons is an open-source **AI-powered security research platform** that combines large language model intelligence with adaptive fuzzing, protocol testing, brute force analysis, and automated vulnerability reporting.
 
-It combines **LLM intelligence**, **adaptive fuzzing**, **reinforcement learning**, and **automated vulnerability analysis** into a single unified pipeline. From source code analysis to HackerOne-ready report, fully automated.
+Unlike conventional fuzzers that throw random inputs at a target, Glitchicons **reads your target first** — using LLMs to understand code structure and generate precision attacks. The result is faster vulnerability discovery with less noise.
 
 ```
-Source Code / Binary / API Endpoint
-              ↓
-    ┌─────────────────────────┐
-    │   CFG Code Mapper       │  ← AST parsing, attack surface scoring
-    └──────────┬──────────────┘
-               ↓
-    ┌─────────────────────────┐
-    │   LLM Seed Generator    │  ← Ollama + code-aware mutation
-    │   + Brain Memory        │  ← learns what works per target
-    └──────────┬──────────────┘
-               ↓
-    ┌────────────────────────────────────┐
-    │  AFL++ Runner  │  RL Agent         │
-    │  (binary)      │  (adaptive strat) │  ← Q-Learning, gets smarter
-    └────────────────────────────────────┘
-               ↓
-    ┌────────────────────────────────────┐
-    │  Protocol Fuzzer  │  Coverage Map  │
-    │  (HTTP/API)       │  (HTML visual) │
-    └────────────────────────────────────┘
-               ↓
-    ┌─────────────────────────┐
-    │   Crash Triage          │  ← GDB + LLM → CWE + CVSS
-    └──────────┬──────────────┘
-               ↓
-    ┌─────────────────────────┐
-    │   Auto Report Export    │  ← HackerOne / Bugcrowd / Internal
-    └─────────────────────────┘
+Conventional fuzzer:  random inputs → hope for crash
+Glitchicons:          read code → understand structure → targeted attack → crash → analysis → report
+```
+
+Built in public. MIT licensed. Designed for security researchers, red teams, and bug bounty hunters.
+
+---
+
+## Architecture
+
+```
+Source Code / Binary / Network Protocol / Web Application
+                         ↓
+    ┌─────────────────────────────────────────┐
+    │         GLITCHICONS SIEGE CORE          │
+    │      LLM Orchestration + Brain Memory   │  ← Ollama / Claude API
+    └──────────────────┬──────────────────────┘
+                       ↓
+    ┌──────────────────────────────────────────────────────┐
+    │  Seed Generator  │  AFL++ Runner  │  Protocol Fuzzer │
+    │  (LLM-guided)    │  (300k/sec)    │  (HTTP/TLS/DNS)  │
+    └──────────────────────────────────────────────────────┘
+                       ↓
+    ┌──────────────────────────────────────────────────────┐
+    │  Crash Triage   │  Coverage Map  │  Brute Force      │
+    │  (GDB + LLM)    │  (gcov/LLVM)   │  (CSRF-aware)     │
+    └──────────────────────────────────────────────────────┘
+                       ↓
+    ┌──────────────────────────────────────────────────────┐
+    │  CFG Code Mapper │  RL Agent     │  Auto Report      │
+    │  (AST/Graph)     │  (adaptive)   │  (CVSS scored)    │
+    └──────────────────────────────────────────────────────┘
+                       ↓
+         CVE Report → Pentest Report → Bounty Ready
 ```
 
 ---
@@ -54,17 +60,18 @@ Source Code / Binary / API Endpoint
 
 | Module | Component | Status | Description |
 |--------|-----------|--------|-------------|
-| **0** | CLI Skeleton | ✅ **DONE** | 10 commands: `seed fuzz protocol triage coverage brain siege map export status` |
-| **1** | LLM Seed Generator | ✅ **DONE** | Ollama + Qwen2.5-Coder · semantic dedup · AST-aware prompts |
+| **0** | CLI (10 commands) | ✅ **DONE** | `seed` `fuzz` `protocol` `triage` `coverage` `brain` `siege` `map` `export` `status` |
+| **1** | LLM Seed Generator | ✅ **DONE** | Ollama + Qwen2.5-Coder → targeted corpus generation |
 | **2** | AFL++ Runner | ✅ **DONE** | AI-seeded AFL++ · 726 crashes in 5 min (PoC) |
-| **3** | Crash Triage | ✅ **DONE** | GDB backtrace + LLM classification → CVE-style report |
-| **4** | Protocol Fuzzer | ✅ **DONE** | HTTP/API · JWT bypass · header injection · path discovery |
-| **BQ** | Build Quality | ✅ **DONE** | Semantic dedup · AST context extractor · Session memory |
-| **5** | Coverage Map | ✅ **DONE** | gcov + AFL++ · interactive D3.js HTML visualization |
-| **6** | RL Agent | ✅ **DONE** | Q-Learning · 10 strategies · persists across sessions |
-| **7** | CFG Code Mapper | ✅ **DONE** | C/C++ + Python CFG · centrality scoring · D3.js graph |
-| **8** | Auto Report Export | ✅ **DONE** | HackerOne · Bugcrowd · Internal audit · JSON |
-| **9** | Glitchicons Cloud | 📋 Planned | SaaS — upload binary, get report |
+| **3** | Crash Triage | ✅ **DONE** | GDB + LLM classification → CVE-style report |
+| **4** | Protocol Fuzzer | ✅ **DONE** | HTTP header/path/param/POST fuzzing with finding detection |
+| **5** | Coverage Map | ✅ **DONE** | gcov/LLVM visualization of code paths |
+| **6** | RL Agent | ✅ **DONE** | Reinforcement learning for adaptive mutation |
+| **7** | CFG Code Mapper | ✅ **DONE** | AST + control flow graph analysis |
+| **8** | Auto Report Export | ✅ **DONE** | Internal/external pentest report with CVSS scoring |
+| **9** | Brute Force | ✅ **DONE** | CSRF-aware login brute force + lockout detection |
+| **10** | Heavy Brute Force | ✅ **DONE** | Time-limited stress testing with rate/peak analysis |
+| **11** | Glitchicons Cloud | 📋 Planned | SaaS — upload binary, get report |
 
 ---
 
@@ -73,10 +80,10 @@ Source Code / Binary / API Endpoint
 ### Requirements
 
 ```bash
-# System (Ubuntu / WSL2)
-sudo apt install afl++ gdb valgrind gcov build-essential python3 python3-pip python3-venv
+# System dependencies (Ubuntu/WSL2)
+sudo apt install afl++ gdb python3 python3-pip python3-venv tor proxychains4 hydra
 
-# Ollama — local LLM, no API key, no cost
+# Ollama — local LLM, no API key required
 curl -fsSL https://ollama.com/install.sh | sh
 ollama pull qwen2.5-coder:3b
 ```
@@ -90,138 +97,199 @@ cd glitchicons
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install ollama requests networkx
 ```
 
-### Verify
+### Usage
 
 ```bash
+# Check environment
 python3 glitchicons.py status
-```
 
-Expected:
-```
-⬡ GLITCHICONS STATUS  v0.4.0-dev
-
-  AFL++        ✓ available    /usr/bin/afl-fuzz
-  GDB          ✓ available    /usr/bin/gdb
-  Valgrind     ✓ available    /usr/bin/valgrind
-  gcov         ✓ available    /usr/bin/gcov
-  Ollama       ✓ available    /usr/local/bin/ollama
-  Python       ✓ available    3.12.3
-  LLM Models   ✓ loaded       qwen2.5-coder:3b
-  requests     ✓ available    2.33.1
-  ollama       ✓ available    ok
-  Brain Memory ✓ active       2 sessions · 2 targets learned
-```
-
----
-
-## Full Pipeline Usage
-
-### Step 1 — Map the target (CFG analysis)
-```bash
-python3 glitchicons.py map ./target.c
-# → Builds CFG, scores attack surface
-# → Generates interactive HTML graph
-# → Outputs seed generation hints
-```
-
-### Step 2 — Generate AI seeds
-```bash
-# From source code (AST-aware)
+# Generate AI-powered seed corpus
+python3 glitchicons.py seed --type json --count 20
+python3 glitchicons.py seed --type http --count 15
 python3 glitchicons.py seed --source ./target.c --count 30
 
-# From input type
-python3 glitchicons.py seed --type json --count 20
-python3 glitchicons.py seed --type http --count 20
-```
-
-### Step 3a — Binary fuzzing (AFL++)
-```bash
+# Run AFL++ with AI seeds
 python3 glitchicons.py fuzz ./target_binary
-```
 
-### Step 3b — RL-guided adaptive fuzzing
-```bash
-# Agent learns optimal mutation strategy for this target
-python3 glitchicons.py siege ./target_binary --interval 60 --duration 3600
-```
+# Protocol fuzzing — web application
+python3 glitchicons.py protocol https://target.com \
+  --endpoints /login --endpoints /api \
+  --post --delay 1.5 \
+  --output ./findings/protocol
 
-### Step 3c — HTTP/API fuzzing
-```bash
-python3 glitchicons.py protocol https://api.target.com
-python3 glitchicons.py protocol https://api.target.com \
-  --endpoints /users --endpoints /admin \
-  --token eyJhbGc... --delay 1.0
-```
+# Triage crashes → CVE report
+python3 glitchicons.py triage ./target_binary ./findings/crashes
 
-### Step 4 — Coverage map
-```bash
-python3 glitchicons.py coverage ./findings
-# → Interactive HTML report: which paths hit, which remain
-```
+# Coverage mapping
+python3 glitchicons.py coverage ./target_binary ./corpus
 
-### Step 5 — Triage crashes
-```bash
-python3 glitchicons.py triage ./target_binary ./findings/default/crashes
-# → GDB analysis + LLM classification
-# → CWE, CVSS, root cause, remediation
-```
+# CFG code analysis
+python3 glitchicons.py map ./target.c
 
-### Step 6 — Export reports
-```bash
-# All formats
-python3 glitchicons.py export
+# Export pentest report
+python3 glitchicons.py export \
+  --reports ./findings/reports \
+  --protocol ./findings/protocol \
+  --format internal \
+  --org "Client Name"
 
-# HackerOne submission
-python3 glitchicons.py export --format h1 --program "GoTo Bug Bounty"
-
-# Internal audit
-python3 glitchicons.py export --format internal --org "PT Startup Indonesia"
-```
-
-### Brain memory stats
-```bash
+# Brain memory status
 python3 glitchicons.py brain
-# → Shows which payload patterns work per target type
-# → Accumulated across all sessions
+
+# Siege mode (full pipeline)
+python3 glitchicons.py siege https://target.com
+```
+
+### Brute Force Module
+
+```bash
+# Standard brute force with lockout detection
+python3 brute_force.py \
+  --target https://target.com \
+  --emails wordlists/emails.txt \
+  --passwords wordlists/passwords.txt \
+  --delay 2.0
+
+# Heavy stress test (time-limited)
+python3 brute_force_heavy.py \
+  --target https://target.com \
+  --email admin@target.com \
+  --passwords wordlists/rockyou.txt \
+  --max-minutes 60
+
+# Via Tor for IP masking
+sudo service tor start
+proxychains4 -q python3 brute_force.py
+```
+
+### Status Check Output
+
+```
+⬡ GLITCHICONS STATUS  v0.5.0-dev
+
+  AFL++        ✓ available    /usr/bin/afl-fuzz
+  Ollama       ✓ available    /usr/local/bin/ollama
+  Models       ✓ loaded       qwen2.5-coder:3b
+  Python       ✓ available    3.12.3
+  GDB          ✓ available    /usr/bin/gdb
+  Valgrind     ✓ available    /usr/bin/valgrind
+  Tor          ✓ available    127.0.0.1:9050
+  Hydra        ✓ available    v9.5
+  Brain Memory ✓ active
 ```
 
 ---
 
 ## Proof of Concept
 
-Tested against an intentionally vulnerable C binary (`strcpy` buffer overflow):
+### Binary Fuzzing (AFL++)
+Tested against an intentionally vulnerable C binary (buffer overflow via `strcpy`):
 
 ```
 Seeds generated : 60 files (JSON + HTTP + XML via LLM)
 AFL++ runtime   : 5 minutes
 Total crashes   : 726
-Unique crashes  : 1 (CWE-121: Stack Buffer Overflow, CVSS 8.1)
-Exec speed      : ~300,000 executions/second
-Triage time     : < 30 seconds
+Unique crashes  : 1 saved (CWE-121: Stack Buffer Overflow)
+Exec speed      : ~300,000 / second
+Triage time     : < 30 seconds per crash
 Trigger         : HTTP seed generated by LLM
-RL Agent        : learned havoc = best strategy (avg reward 9.4)
-Export          : HackerOne + Bugcrowd + Internal reports generated
+CVSS Score      : 8.1 (HIGH)
+```
+
+### Web Application Protocol Fuzzing
+Tested against a live authorized target (B2B wholesale platform, 70K customers):
+
+```
+Scan duration    : ~3 hours (unauthenticated)
+Findings         : 12 total
+  CRITICAL       : 1  (No brute force protection — CVSS 9.1)
+  HIGH           : 2  (URL rewriting bypass, internal 500 errors)
+  MEDIUM         : 5  (Route table exposure, missing headers, API key leak, etc.)
+  LOW            : 4  (Misconfigured endpoints, placeholder files)
+Stealth          : Full Tor routing — IP never exposed
+Detection        : Zero — no alerts triggered on target
+```
+
+### Brute Force Stress Test
+Live authorized brute force test against authenticated endpoint:
+
+```
+Standard test (1s delay):
+  Duration   : 60 minutes
+  Attempts   : 2,353
+  Rate       : 39 attempts/min
+  Lockout    : NEVER triggered
+
+Zero delay stress test:
+  Duration   : 10 minutes
+  Attempts   : 1,116
+  Avg rate   : 112 attempts/min
+  Peak rate  : 134 attempts/min
+  Rate limit : NEVER triggered
+  Lockout    : NEVER triggered
+
+Finding: No brute force protection confirmed on platform
+with 70,000 registered customers (CRITICAL, CVSS 9.1)
 ```
 
 ---
 
-## Codebase
+## Module Details
 
-| File | Module | Lines |
-|------|--------|-------|
-| `glitchicons.py` | CLI (10 commands) | 459 |
-| `seed_generator.py` | Module 1 | 273 |
-| `crash_triage.py` | Module 3 | 429 |
-| `protocol_fuzzer.py` | Module 4 | 766 |
-| `glitchicons_brain.py` | Build Quality | 587 |
-| `coverage_map.py` | Module 5 | 669 |
-| `rl_agent.py` | Module 6 | 775 |
-| `code_mapper.py` | Module 7 | 941 |
-| `report_exporter.py` | Module 8 | 940 |
-| **Total** | **8 modules** | **~6,800 lines** |
+### Protocol Fuzzer (`protocol_fuzzer.py`)
+- HTTP path traversal and endpoint discovery
+- Header injection (X-Original-URL, X-Forwarded-For, etc.)
+- GET parameter fuzzing with baseline comparison
+- POST body fuzzing with LLM-generated payloads
+- Privilege escalation detection
+- Rate-limited to avoid service disruption
+- Auto-saves findings as markdown report
+
+### Brute Force (`brute_force.py`)
+- CSRF token grabber (Laravel/Inertia.js compatible)
+- Rate-aware login brute force
+- Account lockout detection
+- Rate limit detection (429, 503, soft blocks)
+- Username enumeration support
+- Tor/proxychains compatible
+- Auto report generation with timestamps
+
+### Heavy Brute Force (`brute_force_heavy.py`)
+- Extended time-limited testing (configurable duration)
+- Zero delay mode for maximum speed stress testing
+- Real-time rate calculation (avg + peak)
+- Session auto-refresh on connection errors
+- Comprehensive final report
+- Designed for authorized stress testing only
+
+### Auto Report Export (`report_exporter.py`)
+- CVSS scoring per finding
+- Internal and external format support
+- LLM-enriched vulnerability descriptions
+- Multi-finding aggregation
+- Markdown output ready for client delivery
+
+---
+
+## Wordlist Setup
+
+```bash
+mkdir -p wordlists
+
+# RockYou (14M passwords)
+curl -L https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt \
+  -o wordlists/rockyou.txt
+
+# Common passwords (10K)
+curl -L https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt \
+  -o wordlists/10k-common.txt
+
+# Usernames
+curl -L https://raw.githubusercontent.com/danielmiessler/SecLists/master/Usernames/top-usernames-shortlist.txt \
+  -o wordlists/usernames.txt
+```
 
 ---
 
@@ -231,36 +299,63 @@ Export          : HackerOne + Bugcrowd + Internal reports generated
 |-------|-----------|--------|
 | CLI | Python 3.10+ · Click · Rich | ✅ Live |
 | Fuzzing Engine | AFL++ 4.09c | ✅ Live |
-| LLM — Local | Ollama + Qwen2.5-Coder:3b | ✅ Live |
+| LLM — Local | Ollama + Qwen2.5-Coder / DeepSeek | ✅ Live |
 | Crash Analysis | GDB 15.x · Valgrind · ASAN | ✅ Live |
-| Graph Analysis | NetworkX (CFG) | ✅ Live |
-| RL Agent | Tabular Q-Learning (pure Python) | ✅ Live |
-| Visualization | D3.js (CFG + Coverage) | ✅ Live |
+| Protocol Fuzzing | Python Requests · Custom HTTP engine | ✅ Live |
+| Brute Force | Python Requests · CSRF-aware · Hydra | ✅ Live |
+| IP Masking | Tor · Proxychains4 | ✅ Live |
+| Reporting | Markdown · CVSS scoring | ✅ Live |
+| Brain Memory | Custom RAG · JSON store | ✅ Live |
+| RL Agent | Stable Baselines3 · PyTorch | ✅ Live |
+| GNN / CFG | AST parser · Graph analysis | ✅ Live |
 | LLM — Cloud | Claude API / OpenAI (optional) | 📋 Planned |
-| Performance | Rust | 📋 Planned |
+| Performance | Rust rewrite | 📋 Planned |
 
 ---
 
 ## Why Glitchicons?
 
-| | Conventional Fuzzer | Glitchicons |
+| | Conventional Pentest Tools | Glitchicons |
 |--|--|--|
-| **Input strategy** | Random mutation | LLM-guided, code-aware |
-| **Adaptation** | Stateless | RL agent learns per target |
-| **Memory** | None | Brain persists across sessions |
-| **Code understanding** | Zero | CFG mapper + AST extractor |
+| **Input strategy** | Random/wordlist | LLM-guided, context-aware |
 | **Crash analysis** | Manual | Automated GDB + LLM |
-| **Reports** | Raw crash dumps | HackerOne/Bugcrowd ready |
-| **Coverage** | Terminal only | Interactive HTML map |
-| **Cost** | Free | Free (MIT) |
+| **Web fuzzing** | Static payloads | Dynamic LLM-generated payloads |
+| **Brute force** | Basic attempts | CSRF-aware + lockout detection |
+| **Reports** | Raw output | CVSS-scored pentest reports |
+| **Stealth** | None built-in | Tor/proxychains integrated |
+| **Learning** | Stateless | RL agent + brain memory |
+| **Cost** | Paid (Burp Pro, etc.) | Free (MIT) |
 
-No competitor integrates all of this in one tool.
+---
+
+## Changelog
+
+### v0.5.0 — Brute Force Module
+- ✅ `brute_force.py` — CSRF-aware login brute forcer with lockout detection
+- ✅ `brute_force_heavy.py` — Extended stress testing with zero delay mode
+- ✅ Tor/proxychains integration for IP masking
+- ✅ Rate and peak analysis reporting
+- ✅ First live engagement completed — 12 findings, 1 CRITICAL confirmed
+
+### v0.4.0 — All Core Modules Complete
+- ✅ All 8 core modules operational
+- ✅ CLI fixed — all 10 commands working
+- ✅ Protocol fuzzer — full HTTP attack surface coverage
+- ✅ Auto report export with CVSS scoring
+- ✅ Brain memory system active
+- ✅ CFG code mapper and RL agent
+
+### v0.2.0 — Initial Release
+- ✅ AFL++ runner with AI seeds
+- ✅ Crash triage with GDB + LLM
+- ✅ LLM seed generator
+- ✅ Basic CLI skeleton
 
 ---
 
 ## Contributing
 
-Built in public. All skill levels welcome.
+Glitchicons is built in public. All skill levels welcome.
 
 - 🐛 **Bug?** [Open an issue](https://github.com/ardanov96/glitchicons/issues)
 - 💡 **Idea?** [Start a discussion](https://github.com/ardanov96/glitchicons/discussions)
@@ -272,16 +367,23 @@ Built in public. All skill levels welcome.
 
 ## Professional Services
 
-Need AI-powered security assessment for your startup or fintech?
+Need AI-powered security assessment for your organization?
 
-→ **[glitchicons.io](https://ardanov96.github.io/GTCN/)** — Pentest services by GLITCHICONS
-→ Contact: ardatron@glitchicons.io
+→ **[glitchicons.io](https://ardanov96.github.io/GTCN/)** — Pentest services by ARDATRON
+→ Email: ardanov96@gmail.com
+
+**Capabilities:**
+- Web application penetration testing
+- Brute force and credential security analysis
+- Security header and configuration audits
+- GDPR compliance risk assessment
+- Full pentest report with CVSS scoring
 
 ---
 
 ## License
 
-MIT License © 2026 ARDATRON
+MIT License © 2026 GLITCHICONS
 
 ---
 
