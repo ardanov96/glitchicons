@@ -63,3 +63,5 @@ cfg_reports/
 wordlists/wholesale_emails.txt
 wordlists/business_passwords.txt
 wordlists/usernames.txt
+*.zip
+add_commands.py
