@@ -15,8 +15,8 @@ from rich.panel import Panel
 console = Console()
 
 def brute_force_heavy(
-    target="https://v2.ancientwisdom.biz",
-    email="admin@ancientwisdom.biz",
+    target="https://target.example.com",
+    email="target@example.com",
     password_file=None,
     delay=1.0,
     max_minutes=60,
@@ -196,8 +196,8 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
 
     brute_force_heavy(
-        target="https://v2.ancientwisdom.biz",
-        email="admin@ancientwisdom.biz",
+        target="https://target.example.com",
+        email="target@example.com",
         password_file="wordlists/rockyou_3m.txt",
         delay=1.0,
         max_minutes=60,

