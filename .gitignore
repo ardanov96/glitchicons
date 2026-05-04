@@ -50,3 +50,16 @@ Thumbs.db
 engagements/
 wordlists/rockyou*
 wordlists/10k*
+
+# Client engagement files — CONFIDENTIAL
+aw_*
+*-aw-*.zip
+engagements/
+protocol_findings/
+reports/
+exported_reports/
+coverage_reports/
+cfg_reports/
+wordlists/wholesale_emails.txt
+wordlists/business_passwords.txt
+wordlists/usernames.txt
