@@ -454,6 +454,64 @@ def export(reports, protocol, output, fmt, program, org, model, no_enrich):
     if summary:
         console.print(f"[green]Done: {summary.get('total_findings', 0)} findings exported[/green]")
 
+# ─────────────────────────────────────────────
+# NEW COMMANDS v0.6.0
+# ─────────────────────────────────────────────
+
+@cli.command()
+@click.argument("domain")
+@click.option("--mode", default="passive",
+              type=click.Choice(["passive", "active"]),
+              help="passive=DNS only, active=full (requires LOA)")
+@click.option("--output", default=None)
+def recon(domain, mode, output):
+    """Recon Engine — subdomain, DNS, HTTP probing, crawl."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent / "modules"))
+    from recon.recon_engine import full_recon
+    full_recon(domain, output_dir=output, mode=mode)
+
+
+@cli.command()
+@click.argument("token")
+@click.option("--output", default=None)
+def jwt(token, output):
+    """JWT Analyzer — algorithm confusion, weak secrets, claims."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent / "modules"))
+    from auth.jwt_analyzer import analyze
+    analyze(token, output_dir=output)
+
+
+@cli.command()
+@click.argument("target")
+@click.option("--profile", default="standard",
+              type=click.Choice(["quick","standard","deep","cves","auth"]))
+@click.option("--severity", default="medium,high,critical")
+@click.option("--output", default=None)
+def scan(target, profile, severity, output):
+    """Nuclei Scanner — vulnerability scanning with templates."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent / "modules"))
+    from scanner.nuclei_wrapper import scan as nuclei_scan
+    nuclei_scan(target, profile=profile,
+                severity=severity, output_dir=output)
+
+
+@cli.command()
+@click.argument("target")
+@click.option("--output", default=None)
+def idor(target, output):
+    """IDOR Fuzzer — sequential ID, parameter, mass assignment."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent / "modules"))
+    from business_logic.idor_fuzzer import run_idor_suite
+    run_idor_suite(target, output_dir=output)
+
 
 if __name__ == "__main__":
     cli()
