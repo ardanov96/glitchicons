@@ -1,0 +1,102 @@
+# ============================================================
+#  GLITCHICONS — Engagement Config Template
+#  Usage: python3 glitchicons.py siege --config engagement.yaml
+#  Copy this file, fill in your target, enable modules needed.
+# ============================================================
+
+# ── Target ───────────────────────────────────────────────
+target:
+  domain: target.com
+  base_url: https://target.com
+  scope:
+    - "*.target.com"
+    - "target.com/api/*"
+  exclude:
+    - "logout.target.com"
+    - "cdn.target.com"
+
+# ── LLM Provider ─────────────────────────────────────────
+llm:
+  provider: ollama          # ollama | anthropic | openai
+  model: qwen2.5-coder:3b
+  temperature: 0.7
+  # api_key: ${ANTHROPIC_API_KEY}   # uncomment for cloud LLM
+
+# ── Output ───────────────────────────────────────────────
+output:
+  dir: ./findings/target-com
+  formats:
+    - markdown
+    - json
+  org: "Client Name"
+  report_type: internal     # internal | external | bounty
+
+# ── Stealth ──────────────────────────────────────────────
+stealth:
+  use_tor: false
+  delay: 1.5                # seconds between requests
+  user_agent: "Mozilla/5.0 (compatible; Glitchicons/0.7)"
+  proxy: null               # e.g. http://127.0.0.1:8080
+
+# ── Modules ──────────────────────────────────────────────
+modules:
+
+  recon:
+    enabled: true
+    mode: passive             # passive | active
+    depth: 2                  # katana crawl depth
+
+  scan:
+    enabled: true
+    profile: standard         # quick | standard | deep | cves | auth
+    severity:
+      - medium
+      - high
+      - critical
+
+  graphql:
+    enabled: false
+    endpoint: /graphql        # auto-detect if null
+    introspect: true
+    dos_test: false           # opt-in: sends heavy queries
+
+  jwt:
+    enabled: false
+    token: null               # paste JWT token here
+
+  idor:
+    enabled: false
+    endpoint: /api/user/{id}
+    method: GET
+
+  inject:
+    xss: true
+    sqli: true
+    ssrf: true
+    ssti: false
+    xxe: false
+    endpoints:
+      - /search
+      - /api/query
+      - /login
+
+  brute_force:
+    enabled: false
+    emails: wordlists/emails.txt
+    passwords: wordlists/passwords.txt
+    delay: 2.0
+    max_attempts: 500
+
+  auth:
+    oauth: false
+    session: false
+
+# ── Seeds (binary fuzzing) ────────────────────────────────
+seeds:
+  enabled: false
+  types:
+    - json
+    - http
+    - xml
+  count: 20
+  target_binary: null       # path to binary to fuzz
