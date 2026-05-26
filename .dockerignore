@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# Python
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+coverage.xml
+*.egg-info
+dist/
+build/
+
+# Dev & sensitive data
+.env
+engagements/
+findings/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
