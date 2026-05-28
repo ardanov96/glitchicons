@@ -2,12 +2,13 @@
 
 ### Decepticons Siege Division — AI-Powered Security Research Platform
 
-[![Status](https://img.shields.io/badge/status-active%20development-blueviolet?style=flat-square)](https://github.com/ardanov96/glitchicons)
-[![Version](https://img.shields.io/badge/version-0.9.0-purple?style=flat-square)](https://github.com/ardanov96/glitchicons/releases)
-[![License](https://img.shields.io/badge/license-MIT-blueviolet?style=flat-square)](https://github.com/ardanov96/glitchicons/blob/main/LICENSE)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen?style=flat-square)](https://github.com/ardanov96/glitchicons)
+[![Version](https://img.shields.io/badge/version-1.0.0-purple?style=flat-square)](https://github.com/ardanov96/glitchicons/releases)
+[![PyPI](https://img.shields.io/badge/pip%20install-glitchicons-blueviolet?style=flat-square)](https://pypi.org/project/glitchicons)
+[![License](https://img.shields.io/badge/license-MIT-blueviolet?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-purple?style=flat-square)](https://python.org)
 [![CI](https://img.shields.io/github/actions/workflow/status/ardanov96/glitchicons/ci.yml?style=flat-square&label=CI)](https://github.com/ardanov96/glitchicons/actions)
-[![Tests](https://img.shields.io/badge/tests-617%20passed-green?style=flat-square)](https://github.com/ardanov96/glitchicons/tree/main/tests)
+[![Tests](https://img.shields.io/badge/tests-748%20passed-green?style=flat-square)](https://github.com/ardanov96/glitchicons/tree/main/tests)
 [![Stars](https://img.shields.io/github/stars/ardanov96/glitchicons?style=flat-square&color=blueviolet)](https://github.com/ardanov96/glitchicons/stargazers)
 
 > *Where others probe, we siege. Where others test, we break.*
@@ -16,276 +17,298 @@
 
 ## What is Glitchicons?
 
-Glitchicons is an open-source **AI-powered security research platform** that combines large language model intelligence with adaptive fuzzing, web offensive testing, protocol analysis, brute force, and automated vulnerability reporting.
-
-Unlike conventional scanners that rely on static signatures, Glitchicons **learns from each response** — using LLMs to evolve payloads, verify findings, explain severity, and bypass WAFs. The result is a self-improving attacker that gets smarter with every engagement.
+Glitchicons is an open-source **AI-powered security research platform** — a self-improving adaptive attacker that reads targets, evolves payloads, verifies findings, explains risk, and integrates with your security workflow.
 
 ```
-Static scanner:   fixed payloads → fire → hope
-Glitchicons v0.9: probe → observe → LLM evolves payload → probe → confirm →
-                  FP reduce → CVSS explain → WAF bypass → report
+Static scanner:    fixed payloads → fire → hope → manual report
+Glitchicons 1.0:   read spec → build attack plan → probe → LLM evolves payload →
+                   WAF bypass → confirm → FP filter → CVSS explain → Jira ticket →
+                   Slack alert → Burp export → SARIF upload
 ```
 
-Built in public. MIT licensed. Designed for security researchers, red teams, and bug bounty hunters.
+**748 unit tests. 0 failures. pip install ready.**
+
+---
+
+## Install
+
+```bash
+pip install glitchicons
+
+# With optional extras
+pip install "glitchicons[grpc]"      # gRPC fuzzer
+pip install "glitchicons[websocket]" # WebSocket fuzzer
+pip install "glitchicons[all]"       # everything
+
+# Verify
+glitchicons status
+```
+
+---
+
+## Quick Start
+
+```bash
+# Full engagement from config file
+glitchicons config init --domain target.com
+# edit engagement.yaml
+glitchicons siege --config engagement.yaml
+
+# Individual modules
+glitchicons cors     https://target.com --token eyJ...
+glitchicons graphql  https://target.com/graphql
+glitchicons openapi  --spec api.yaml --base-url https://api.target.com
+glitchicons takeover --domain target.com
+glitchicons mfa      --target https://target.com/auth/2fa
+glitchicons grpc     --target grpc.target.com:443
+
+# Intelligence layer
+glitchicons mutate --url https://target.com/search --param q --payload "' OR '1'='1"
+glitchicons verify --input ./findings/raw.json
+glitchicons explain --input ./findings/raw.json --rescore
+glitchicons evade "<script>alert(1)</script>" --waf Cloudflare --type xss
+```
 
 ---
 
 ## Architecture
 
 ```
-Source Code / Binary / API / WebSocket / gRPC / Web Application
-                         ↓
-    ┌─────────────────────────────────────────────────┐
-    │         INTELLIGENCE LAYER (v0.9.0)             │
-    │  LLM Mutation Loop  │  False Positive Reducer   │
-    │  Severity Reasoner  │  WAF Evasion Engine        │
-    └──────────────────┬──────────────────────────────┘
-                       ↓
-    ┌──────────────────────────────────────────────────────────────────┐
-    │  OpenAPI Parser   │  gRPC Fuzzer    │  Subdomain Takeover        │
-    │  (auto attack     │  (proto encode) │  (25+ fingerprints)        │
-    │   plan from spec) │                 │                            │
-    └──────────────────────────────────────────────────────────────────┘
-                       ↓
-    ┌──────────────────────────────────────────────────────────────────┐
-    │  GraphQL Fuzzer   │  WebSocket Fuzz │  CORS Checker              │
-    │  MFA Bypass       │  JWT / OAuth    │  XSS / SQLi / SSRF         │
-    │  SSTI / XXE       │  IDOR / Race    │  Price Manipulation        │
-    └──────────────────────────────────────────────────────────────────┘
-                       ↓
-    ┌──────────────────────────────────────────────────────────────────┐
-    │  AFL++ Fuzzer     │  Protocol Fuzz  │  Crash Triage (GDB+LLM)   │
-    │  Coverage Map     │  RL Agent       │  Brute Force (CSRF-aware)  │
-    └──────────────────────────────────────────────────────────────────┘
-                       ↓
-         HTML Report → JSON → Markdown → CVSS Scored → Bounty Ready
+Target (web / binary / API / protocol)
+              ↓
+ ┌────────────────────────────────────────────────────────┐
+ │              INTELLIGENCE LAYER v0.9.0                 │
+ │  LLM Mutation · FP Reducer · CVSS Reasoner · WAF Evade │
+ └────────────────────┬───────────────────────────────────┘
+                      ↓
+ ┌────────────────────────────────────────────────────────┐
+ │           ATTACK SURFACE v0.8.0 + v0.7.0               │
+ │  OpenAPI · gRPC · Subdomain · MFA · GraphQL ·          │
+ │  WebSocket · CORS · XSS · SQLi · SSRF · JWT · IDOR     │
+ └────────────────────┬───────────────────────────────────┘
+                      ↓
+ ┌────────────────────────────────────────────────────────┐
+ │              STABLE PLATFORM v1.0.0                    │
+ │  PyPI install · Plugin system · Integrations           │
+ │  Go binary interface (glitchrace, glitchscan, ...)     │
+ └────────────────────┬───────────────────────────────────┘
+                      ↓
+      Burp XML · Slack · Discord · Jira · SARIF
 ```
 
 ---
 
 ## Development Status
 
-### v0.9.0 — Intelligence Layer ✅ (Current)
+### v1.0.0 — Stable Release ✅ (Current)
 
 | Module | Tests | Description |
 |---|---|---|
-| **LLM Mutation Loop** | 54 | Adaptive payload evolution via LLM feedback |
-| **False Positive Reducer** | 47 | LLM verifies findings before they enter report |
-| **Severity Reasoning** | 43 | CVSS v3.1 calculator + LLM narrative + exec summary |
-| **WAF Evasion Engine** | 65 | 30+ techniques: URL/unicode/hex/case/comment/XSS |
-| **Total v0.9.0** | **209** | 0 failures |
+| **PyPI Packaging** | 43 | `pip install glitchicons`, CLI entry point, public API |
+| **Plugin System** | — | `GlitchiconPlugin` ABC, `PluginRegistry`, `make_finding()` |
+| **Integration Layer** | 45 | Burp XML, Slack, Discord, Jira REST API, SARIF 2.1.0 |
+| **Go Integration Arch** | 38 | Registry, Runner, Parser, Locator, HealthChecker |
+| **Total v1.0.0** | **126** | 0 failures |
+
+### v0.9.0 — Intelligence Layer ✅
+
+| Module | Tests | Description |
+|---|---|---|
+| LLM Mutation Loop | 54 | Adaptive payload evolution, 3 LLM providers |
+| False Positive Reducer | 47 | 4-step pipeline, confidence scoring |
+| Severity Reasoning | 43 | Pure Python CVSS v3.1, LLM narrative, exec summary |
+| WAF Evasion Engine | 65 | 30+ techniques, 8 WAF fingerprints |
 
 ### v0.8.0 — API & Protocol Expansion ✅
 
 | Module | Tests | Description |
 |---|---|---|
 | OpenAPI Parser | 55 | Swagger 2.0 + OpenAPI 3.x auto attack plan |
-| gRPC Fuzzer | 49 | Reflection, injection, proto encoder |
-| Subdomain Takeover | 40 | 25+ cloud fingerprints, dead NS detection |
-| MFA Bypass Tester | 55 | 10 attacks: OTP brute, skip, type juggling, race |
+| gRPC Fuzzer | 49 | Reflection, injection, pure Python proto encoder |
+| Subdomain Takeover | 40 | 25+ cloud/SaaS fingerprints, dead NS |
+| MFA Bypass Tester | 55 | 10 bypass techniques |
 
-### v0.7.0 — Foundation ✅
+### v0.7.0 — Foundation ✅ | v0.6.0 — Web Offensive ✅ | Core ✅
 
-| Module | Tests | Description |
-|---|---|---|
-| Config + CI/Docker | 29 | YAML siege mode, GitHub Actions, Docker |
-| GraphQL + WebSocket + CORS | 98 | 24+ attack modules combined |
-| HTML Report + Config | 31+29 | Dark theme dashboard, YAML engagement config |
-
-### v0.6.0 — Web Offensive (15 modules) ✅
-
-Recon · JWT · OAuth · Session · XSS · SQLi · SSRF · SSTI · XXE · IDOR · Price · Race · Nuclei
-
-### Core (v0.2.0–v0.5.0) ✅
-
-AFL++ · Crash triage · Protocol fuzzer · RL agent · CFG mapper · Brute force
+GraphQL · WebSocket · CORS · HTML Report · JWT · OAuth · XSS · SQLi · SSRF · SSTI · IDOR · Race · AFL++ · Crash Triage
 
 ---
 
-## Quick Start
-
-### Docker (Recommended)
-
-```bash
-git clone https://github.com/ardanov96/glitchicons.git && cd glitchicons
-docker-compose up -d
-docker-compose run --rm glitchicons status
-```
-
-### Linux/WSL2
-
-```bash
-git clone https://github.com/ardanov96/glitchicons.git && cd glitchicons
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-pip install websocket-client grpcio grpcio-reflection dnspython
-```
-
-### Windows 11
-
-```powershell
-git clone https://github.com/ardanov96/glitchicons.git && cd glitchicons
-python -m venv .venv && .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-pip install websocket-client grpcio grpcio-reflection dnspython
-```
-
----
-
-## Usage
-
-### Intelligence Layer (v0.9.0)
+## Python API
 
 ```python
-# LLM Mutation Loop — adaptive payload evolution
-from modules.intelligence.llm_mutator import LLMMutator
-
-mutator = LLMMutator(provider="ollama", model="qwen2.5-coder:3b")
-result = mutator.mutate_and_test(
-    target_url="https://target.com/search",
-    param="q",
-    base_payload="' OR '1'='1",
-    attack_type="sqli",
-    max_rounds=5,
+from glitchicons import (
+    # Web offensive
+    GraphQLFuzzer, WebSocketFuzzer, CORSChecker, GRPCFuzzer,
+    # Recon
+    OpenAPIParser, SubdomainTakeoverChecker,
+    # Auth
+    MFABypassTester, OTPGenerator,
+    # Intelligence
+    LLMMutator, FalsePositiveReducer, SeverityReasoner, CVSSCalculator,
+    WAFEvasionEngine,
+    # Report
+    HTMLReporter,
 )
-# result.successful_payload — evolved bypass payload
 
-# False Positive Reducer — verify findings before reporting
-from modules.intelligence.fp_reducer import FalsePositiveReducer
+# Auto attack plan from OpenAPI spec
+parser = OpenAPIParser(base_url="https://api.target.com")
+plan   = parser.parse_file("swagger.json")
+print(f"{plan.total_endpoints} endpoints, {len(plan.findings)} static findings")
 
-reducer = FalsePositiveReducer(provider="ollama")
+# Adaptive LLM mutation
+mutator = LLMMutator(provider="ollama", model="qwen2.5-coder:3b")
+result  = mutator.mutate_and_test(
+    target_url="https://target.com/search",
+    param="q", base_payload="' OR '1'='1",
+    attack_type="sqli", max_rounds=5,
+)
+
+# Verify + reduce false positives
+reducer  = FalsePositiveReducer(provider="ollama")
 verified = reducer.verify_all(raw_findings)
-clean = [f for f in verified if f["verdict"] != "FALSE_POSITIVE"]
 
-# Severity Reasoning — explain CVSS scores
-from modules.intelligence.severity_reasoner import SeverityReasoner
-
+# CVSS reasoning + narrative
 reasoner = SeverityReasoner(provider="ollama", rescore=True)
-enriched = reasoner.enrich_all(findings)
-# Each finding now has: narrative, business_impact, executive_summary,
-#                        cvss_vector, cvss_breakdown, remediation_priority
+enriched = reasoner.enrich_all(verified)
 
-# WAF Evasion — bypass blocked payloads
-from modules.intelligence.waf_evasion import WAFEvasionEngine
-
-engine = WAFEvasionEngine()
-# Detect WAF type
-waf = engine.fingerprint_waf(response_headers, response_body)  # "Cloudflare"
-# Generate bypass variants
-variants = engine.smart_bypass("' OR '1'='1", waf_type=waf, attack_type="sqli")
-# Generate evasion wordlist
-engine.generate_wordlist(base_payloads, attack_type="sqli", output_file="./bypass.txt")
-```
-
-### Siege Mode
-
-```bash
-python3 glitchicons.py config init --domain target.com
-python3 glitchicons.py siege --config engagement.yaml
-```
-
-### Module Commands
-
-```bash
-# v0.9.0 Intelligence
-python3 glitchicons.py mutate --url https://t.com/search --param q --payload "' OR '1'='1"
-python3 glitchicons.py verify  --input ./findings/raw.json
-python3 glitchicons.py explain --input ./findings/raw.json --rescore
-python3 glitchicons.py evade   --payload "<script>alert(1)</script>" --waf cloudflare
-
-# v0.8.0 API/Protocol
-python3 glitchicons.py openapi  --spec swagger.json --base-url https://api.target.com
-python3 glitchicons.py grpc     --target grpc.target.com:443
-python3 glitchicons.py takeover --domain target.com
-python3 glitchicons.py mfa      --target https://target.com/auth/mfa
-
-# v0.7.0 Web
-python3 glitchicons.py graphql  https://target.com/graphql --introspect
-python3 glitchicons.py websocket wss://target.com/ws --token eyJ...
-python3 glitchicons.py cors     https://target.com
-
-# Core
-python3 glitchicons.py recon    target.com --mode passive
-python3 glitchicons.py scan     https://target.com --profile deep
-python3 glitchicons.py jwt      eyJhbGciOiJSUzI1NiJ9...
-python3 glitchicons.py fuzz     ./target_binary
-```
-
-### Developer
-
-```bash
-pytest tests/ -v          # 617 unit tests
-ruff check .              # lint
-bandit -r . -x .venv,tests  # security scan on source
+# WAF bypass variants
+engine   = WAFEvasionEngine()
+waf_type = engine.fingerprint_waf(resp_headers, resp_body)
+variants = engine.smart_bypass(payload, waf_type, "sqli")
 ```
 
 ---
 
-## New in v0.9.0 — Intelligence Layer
-
-### LLM Mutation Loop
-
-Transforms Glitchicons from static scanner to adaptive attacker:
-
-```
-Round 1: base payload → blocked (403)
-  LLM: "Server blocked single quote. Try unicode encoding or comment injection."
-Round 2: unicode variant → error message (MySQL syntax near...)
-  LLM: "MySQL detected. Try time-based or UNION-based payloads."
-Round 3: SLEEP(3) variant → 3.2s response time → CONFIRMED SQLi
-```
-
-Supports: SQLi · XSS · SSTI · SSRF · generic
-Providers: Ollama (local) · Anthropic · OpenAI
-
-### False Positive Reducer
-
-Filters noise before findings enter the report:
-
-```
-Input:  18 raw findings
-Output: CONFIRMED: 8 | LIKELY: 4 | UNCERTAIN: 3 | FALSE_POSITIVE: 3
-
-Pipeline:
-  Static analysis → strong evidence patterns matched?
-  Fast path       → 2+ signals = CONFIRMED instantly
-  LLM reasoning   → contextual analysis with confidence 0.0-1.0
-  Re-probe        → optional confirmation payload to live target
-```
-
-### Severity Reasoning Engine
-
-Full CVSS v3.1 calculator + LLM-powered explanations:
-
-```
-Input:  finding with title + evidence
-Output:
-  cvss_vector:          CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
-  cvss_breakdown:       {Attack Vector: Network, Complexity: Low, ...}
-  narrative:            "This SQL injection vulnerability allows..."
-  business_impact:      "This poses an immediate, existential risk..."
-  executive_summary:    Non-technical one-paragraph for management
-  remediation_priority: 95/100 (CVSS + exploitability + attack type)
-  suggested_score:      LLM can challenge original score if wrong
-```
-
-### WAF Evasion Engine (30+ techniques)
+## Plugin System
 
 ```python
+# Create a plugin
+from glitchicons.plugin_system import GlitchiconPlugin, make_finding
+
+class MyPlugin(GlitchiconPlugin):
+    name        = "my-custom-check"
+    version     = "1.0.0"
+    description = "Custom security check"
+    tags        = ["recon", "auth"]
+
+    def run(self, target: str, **kwargs) -> list[dict]:
+        # ... your logic
+        return [make_finding(
+            title="Found Something",
+            severity="HIGH", cvss=7.5, cwe="CWE-200",
+            description="...", evidence="...",
+            remediation="...", target=target,
+        )]
+
+# Register in your pyproject.toml:
+# [project.entry-points."glitchicons.plugins"]
+# my-plugin = "myplugin:MyPlugin"
+
+# Then use:
+glitchicons plugins list
+```
+
+---
+
+## Integrations
+
+```python
+from modules.integrations.integrations import (
+    BurpExporter, SlackNotifier, DiscordNotifier,
+    JiraIntegration, SARIFExporter,
+)
+
+# Burp Suite XML
+BurpExporter().export(findings, "./findings/burp.xml")
+
+# Slack alert for critical findings
+slack = SlackNotifier(webhook_url=os.environ["SLACK_WEBHOOK"])
+slack.notify_critical(findings, target="target.com")
+slack.notify_summary(findings, target="target.com", duration="4h30m")
+
+# Discord embed notifications
+discord = DiscordNotifier(webhook_url=os.environ["DISCORD_WEBHOOK"])
+discord.notify_critical(findings, target="target.com")
+
+# Jira tickets for HIGH+ findings
+jira = JiraIntegration(
+    url="https://company.atlassian.net",
+    email="security@company.com",
+    api_token=os.environ["JIRA_TOKEN"],
+)
+tickets = jira.create_tickets(findings, project_key="SEC", min_severity="HIGH")
+
+# SARIF for GitHub Code Scanning
+SARIFExporter().export(findings, "./findings/results.sarif")
+# Upload via: gh code-scanning upload-sarif --sarif findings/results.sarif
+```
+
+---
+
+## Go Integration (v1.1.0+)
+
+Go binaries plug into Glitchicons via a standard JSON interface:
+
+```python
+from modules.go.go_runner import GoRunner, GoHealthChecker
+
+# Check what's installed
+GoHealthChecker().print_status()
+
+# Run a Go binary (once installed)
+runner = GoRunner(timeout=120)
+result = runner.run("glitchrace", [
+    "--target", "https://target.com/api/checkout",
+    "--param",  "coupon_code",
+    "--threads", "100",
+    "--output", "json",
+])
+
+for finding in result.findings:
+    print(finding["severity"], finding["title"])
+```
+
+### Planned Go Modules
+
+| Binary | Version | Description | Speedup |
+|---|---|---|---|
+| `glitchrace` | v1.1.0 | Race condition — ns precision | 100x |
+| `glitchscan` | v1.1.0 | Port + service scanner | 20x |
+| `glitchfuzz` | v1.2.0 | HTTP directory fuzzer | 25x |
+| `glitchdns`  | v1.2.0 | DNS brute forcer | 20x |
+| `glitchtls`  | v1.3.0 | TLS/SSL analyzer | new |
+| `glitchproxy`| v1.3.0 | Intercepting HTTP proxy | new |
+
+Install (when available):
+```bash
+go install github.com/ardanov96/glitchrace@latest
+go install github.com/ardanov96/glitchscan@latest
+```
+
+---
+
+## WAF Evasion
+
+```python
+from glitchicons import WAFEvasionEngine
+
 engine = WAFEvasionEngine()
 
-# All techniques for SQLi
+# 30+ encoding techniques
 variants = engine.evade("' OR '1'='1", attack_type="sqli")
-# → [EvasionVariant(technique="comment_inline", encoded="'/**/OR/**/...", rate=0.75),
-#    EvasionVariant(technique="unicode",        encoded="%u0027...",      rate=0.70),
-#    ...]
 
 # WAF-specific smart bypass
-waf = engine.fingerprint_waf(headers, body)  # "Cloudflare"
-bypasses = engine.smart_bypass(payload, waf, "sqli")
+waf  = engine.fingerprint_waf(response_headers, response_body)
+# → "Cloudflare"
+bypasses = engine.smart_bypass(payload, waf_type=waf, attack_type="sqli")
 
 # Export wordlist for other tools
-engine.generate_wordlist(payloads, output_file="./wordlists/sqli_waf_bypass.txt")
+engine.generate_wordlist(
+    base_payloads=["' OR '1'='1", "UNION SELECT NULL--"],
+    attack_type="sqli",
+    output_file="./wordlists/sqli_bypass.txt",
+)
 ```
 
 Techniques: URL(×3) · Unicode · HTML entity(×3) · Hex · Base64 · CHAR() ·
@@ -296,20 +319,28 @@ WAF fingerprints: Cloudflare · ModSecurity · Akamai · AWS WAF · Imperva · S
 
 ---
 
-## Tech Stack
+## Proof of Concept
 
-| Layer | Technology | Status |
-|---|---|---|
-| Intelligence | LLM Mutation · FP Reducer · CVSS Engine · WAF Evasion | ✅ v0.9.0 |
-| API/Protocol | OpenAPI · gRPC · Subdomain · MFA | ✅ v0.8.0 |
-| Web Offensive | GraphQL · WebSocket · CORS · HTML Report | ✅ v0.7.0 |
-| Injection | XSS · SQLi · SSRF · SSTI · XXE | ✅ v0.6.0 |
-| Auth | JWT · OAuth · Session · MFA | ✅ Live |
-| Fuzzing | AFL++ · Protocol · RL Agent · CFG | ✅ Live |
-| LLM — Local | Ollama + Qwen2.5-Coder | ✅ Live |
-| LLM — Cloud | Anthropic + OpenAI (optional) | ✅ Live |
-| CI/CD | GitHub Actions · Docker | ✅ Live |
-| Test Suite | pytest · 617 tests · 0 failures | ✅ Live |
+### Binary Fuzzing (AFL++)
+
+```
+Seeds:          60 LLM-generated corpus files
+Runtime:        5 minutes
+Crashes found:  726
+CVSS:           8.1 (HIGH)
+```
+
+### Live Web Engagement (B2B SaaS, 70K users)
+
+```
+Duration:       < 8 hours (unauthenticated)
+Detection:      Zero (Tor routing, no WAF alerts)
+
+CRITICAL (1):   No brute force protection — 2,353 attempts/60 min (CVSS 9.1)
+HIGH (4):       Checkout webhook auth bypass · Unauthenticated pricing API · ...
+MEDIUM (7):     Security headers · API key exposure · DMARC p=none · ...
+Total:          12 findings
+```
 
 ---
 
@@ -317,72 +348,63 @@ WAF fingerprints: Cloudflare · ModSecurity · Akamai · AWS WAF · Imperva · S
 
 ```
 glitchicons/
+├── glitchicons/                  # v1.0.0 installable package
+│   ├── __init__.py               # Public API + __version__ = "1.0.0"
+│   ├── cli.py                    # 15 CLI commands
+│   └── plugin_system.py          # Plugin ABC + Registry + make_finding()
 ├── modules/
-│   ├── intelligence/           # NEW v0.9.0
-│   │   ├── llm_mutator.py      # Adaptive payload evolution
-│   │   ├── fp_reducer.py       # False positive reduction
-│   │   ├── severity_reasoner.py # CVSS + narrative + exec summary
-│   │   └── waf_evasion.py      # 30+ encoding/bypass techniques
+│   ├── intelligence/             # v0.9.0
+│   │   ├── llm_mutator.py
+│   │   ├── fp_reducer.py
+│   │   ├── severity_reasoner.py
+│   │   └── waf_evasion.py
+│   ├── integrations/             # v1.0.0
+│   │   └── integrations.py       # Burp, Slack, Discord, Jira, SARIF
+│   ├── go/                       # v1.0.0
+│   │   └── go_runner.py          # Go binary interface
 │   ├── auth/
-│   │   ├── jwt_analyzer.py / oauth_tester.py / session_analyzer.py
-│   │   └── mfa_bypass.py       # v0.8.0
+│   │   └── mfa_bypass.py         # v0.8.0
 │   ├── inject/
-│   │   ├── xss / sqli / ssrf / ssti / xxe
-│   │   ├── graphql_fuzzer.py / websocket_fuzzer.py / cors_checker.py
-│   │   └── grpc_fuzzer.py      # v0.8.0
+│   │   └── grpc_fuzzer.py        # v0.8.0
 │   ├── recon/
-│   │   ├── recon_engine.py / tech_fingerprint.py / cloud_assets.py
-│   │   ├── openapi_parser.py   # v0.8.0
+│   │   ├── openapi_parser.py     # v0.8.0
 │   │   └── subdomain_takeover.py # v0.8.0
 │   ├── config/
-│   │   └── config_loader.py / siege_runner.py
 │   ├── report/
-│   │   └── html_reporter.py
 │   └── scanner/
-│       └── nuclei_wrapper.py
-└── tests/                      # 617 unit tests
-    ├── test_llm_mutator.py      # 54
-    ├── test_fp_reducer.py       # 47
-    ├── test_severity_reasoner.py # 43
-    ├── test_waf_evasion.py      # 65
-    ├── test_openapi_parser.py   # 55
-    ├── test_grpc_fuzzer.py      # 49
-    ├── test_subdomain_takeover.py # 40
-    ├── test_mfa_bypass.py       # 55
-    └── [7 more test files]
+├── tests/                        # 748 unit tests
+└── pyproject.toml                # v1.0.0, PyPI ready
 ```
 
 ---
 
 ## Changelog
 
+### v1.0.0 — Stable Release
+
+- ✅ **pip install glitchicons** — PyPI ready, entry point, public API
+- ✅ **Plugin System** — `GlitchiconPlugin` ABC, `PluginRegistry`, `make_finding()` schema
+- ✅ **Integration Layer** — Burp XML · Slack · Discord · Jira REST API · SARIF 2.1.0
+- ✅ **Go Integration Arch** — binary registry, subprocess runner, JSON schema, health checker
+- ✅ **748 total tests**, 0 failures, 0 warnings
+
 ### v0.9.0 — Intelligence Layer
 
-- ✅ **LLM Mutation Loop** — adaptive feedback loop, 5 attack types, 3 LLM providers, 54 tests
-- ✅ **False Positive Reducer** — 4-step pipeline, confidence scoring, fast paths, 47 tests
-- ✅ **Severity Reasoning** — pure Python CVSS v3.1 calculator, LLM narrative, exec summary, 43 tests
-- ✅ **WAF Evasion Engine** — 30+ techniques, 8 WAF fingerprints, smart bypass, wordlist export, 65 tests
-- ✅ **617 total tests**, 0 failures
+- ✅ LLM Mutation Loop · False Positive Reducer · Severity Reasoning · WAF Evasion — 209 tests
 
 ### v0.8.0 — API & Protocol Expansion
 
 - ✅ OpenAPI Parser · gRPC Fuzzer · Subdomain Takeover · MFA Bypass — 199 tests
 
-### v0.7.0 — Foundation + Attack Surface Expansion
+### v0.7.0–v0.6.0 — Foundation + Web Offensive
 
-- ✅ CI/CD · Docker · Config · GraphQL · WebSocket · CORS · HTML Report — 209 tests
-
-### v0.6.0 — Web Offensive Toolkit
-
-- ✅ 15 modules: Recon · JWT · OAuth · XSS · SQLi · SSRF · SSTI · XXE · IDOR · Race
+- ✅ 209 + 15 modules
 
 ---
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) · Ranks: `RECRUIT` → `OPERATIVE` → `COMMANDER` → `WARLORD`
-
-- 🐛 [Issues](https://github.com/ardanov96/glitchicons/issues) · 💡 [Discussions](https://github.com/ardanov96/glitchicons/discussions)
 
 ---
 
