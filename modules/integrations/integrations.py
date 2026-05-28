@@ -33,7 +33,7 @@ Author: ardanov96
 
 import json
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from xml.dom import minidom
 import httpx
@@ -650,7 +650,7 @@ class SARIFExporter:
                 "results": results,
                 "invocations": [{
                     "executionSuccessful": True,
-                    "endTimeUtc": datetime.utcnow().isoformat() + "Z",
+                    "endTimeUtc": datetime.now(timezone.utc).isoformat(),
                 }]
             }]
         }
