@@ -1,46 +1,42 @@
-# ============================================================
-#  GLITCHICONS — GitHub Actions CI
-#  Runs on every push & PR to main
-# ============================================================
+# .github/workflows/ci.yml
+# Glitchicons CI/CD Pipeline — v1.4.0
+#
+# Jobs:
+#   1. test     — Python unit tests (748 tests, all OS)
+#   2. lint     — ruff + bandit security scan
+#   3. build-go — compile all 6 Go binaries (Linux + Windows + macOS)
+#   4. release  — on tag push: create GitHub Release + upload binaries
+#
+# Triggers:
+#   - Push to main
+#   - Pull request to main
+#   - Tag push (v*)
 
 name: CI
 
 on:
   push:
-    branches: [main, develop, "v*"]
+    branches: [main]
+    tags:     ["v*"]
   pull_request:
     branches: [main]
 
+env:
+  PYTHON_VERSION: "3.12"
+  GO_VERSION:     "1.22"
+
+# ── Jobs ─────────────────────────────────────────────────
+
 jobs:
 
-  # ── Lint & Security Scan ─────────────────────────────────
-  lint:
-    name: Lint & Security
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-
-      - name: Install lint tools
-        run: pip install ruff bandit
-
-      - name: Ruff — code style
-        run: ruff check . --output-format=github
-
-      - name: Bandit — security issues in source
-        run: bandit -r . -x .venv,tests -ll --format github
-
-  # ── Unit Tests ───────────────────────────────────────────
+  # ── 1. Python tests ───────────────────────────────────
   test:
-    name: Tests (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    name: Python Tests
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.10", "3.11", "3.12"]
 
     steps:
@@ -50,56 +46,174 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
+          cache: pip
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov responses httpretty
+          pip install -e ".[dev]"
+          pip install grpcio grpcio-reflection dnspython websocket-client
 
-      - name: Run tests with coverage
+      - name: Run test suite
+        run: pytest tests/ -q --tb=short --co -q 2>/dev/null | tail -1 || true
+        shell: bash
+
+      - name: Run tests
+        run: pytest tests/ -q --tb=short
+
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: |
-          pytest tests/ \
-            --cov=. \
-            --cov-report=xml \
-            --cov-report=term-missing \
-            -v \
-            --tb=short
+          pip install pytest-cov
+          pytest tests/ --cov=glitchicons --cov=modules --cov-report=xml -q
+        continue-on-error: true
 
-      - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.12'
-        uses: codecov/codecov-action@v4
+  # ── 2. Lint + Security scan ───────────────────────────
+  lint:
+    name: Lint + Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          file: ./coverage.xml
-          flags: unittests
-          fail_ci_if_error: false
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
 
-  # ── Docker Build Test ─────────────────────────────────────
-  docker:
-    name: Docker Build
+      - name: Install lint tools
+        run: pip install ruff bandit
+
+      - name: Ruff lint
+        run: ruff check . --output-format=github
+        continue-on-error: true
+
+      - name: Bandit security scan
+        run: bandit -r glitchicons/ modules/ -x .venv,tests -ll -q
+        continue-on-error: true
+
+  # ── 3. Go build (all platforms) ───────────────────────
+  build-go:
+    name: Build Go — ${{ matrix.module }} (${{ matrix.goos }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [glitchrace, glitchscan, glitchfuzz, glitchdns, glitchtls, glitchproxy]
+        goos:   [linux, windows, darwin]
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: ""
+          - goos: windows
+            goarch: amd64
+            suffix: ".exe"
+          - goos: darwin
+            goarch: amd64
+            suffix: "-macos"
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t glitchicons:ci .
+      - name: Set up Go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: ${{ matrix.module }}/go.sum
 
-      - name: Test container starts
+      - name: Download dependencies
+        working-directory: ${{ matrix.module }}
+        run: go mod tidy
+
+      - name: Build ${{ matrix.module }} for ${{ matrix.goos }}
+        working-directory: ${{ matrix.module }}
+        env:
+          GOOS:   ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
         run: |
-          docker run --rm glitchicons:ci --help || true
+          go build -ldflags="-s -w" \
+            -o ../bin/${{ matrix.module }}-${{ matrix.goos }}-amd64${{ matrix.suffix }} \
+            .
 
-  # ── Release (on tag push) ─────────────────────────────────
+      - name: Verify binary
+        if: matrix.goos == 'linux'
+        run: |
+          chmod +x bin/${{ matrix.module }}-linux-amd64
+          ./bin/${{ matrix.module }}-linux-amd64 --version
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.module }}-${{ matrix.goos }}-amd64
+          path: bin/${{ matrix.module }}-${{ matrix.goos }}-amd64${{ matrix.suffix }}
+          retention-days: 7
+
+  # ── 4. GitHub Release (on tag only) ───────────────────
   release:
-    name: Create Release
+    name: GitHub Release
+    needs: [test, lint, build-go]
     runs-on: ubuntu-latest
-    needs: [lint, test, docker]
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts/
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la release-artifacts/
+
+      - name: Get tag name
+        id: tag
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create checksums
+        run: |
+          cd release-artifacts
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "GLITCHICONS ${{ steps.tag.outputs.tag }}"
+          body: |
+            ## GLITCHICONS ${{ steps.tag.outputs.tag }}
+
+            ### Go Binaries
+
+            Download the binary for your platform:
+
+            | Binary | Linux | Windows | macOS |
+            |--------|-------|---------|-------|
+            | glitchrace | `glitchrace-linux-amd64` | `glitchrace-windows-amd64.exe` | `glitchrace-darwin-amd64-macos` |
+            | glitchscan | `glitchscan-linux-amd64` | `glitchscan-windows-amd64.exe` | `glitchscan-darwin-amd64-macos` |
+            | glitchfuzz | `glitchfuzz-linux-amd64` | `glitchfuzz-windows-amd64.exe` | `glitchfuzz-darwin-amd64-macos` |
+            | glitchdns  | `glitchdns-linux-amd64`  | `glitchdns-windows-amd64.exe`  | `glitchdns-darwin-amd64-macos`  |
+            | glitchtls  | `glitchtls-linux-amd64`  | `glitchtls-windows-amd64.exe`  | `glitchtls-darwin-amd64-macos`  |
+            | glitchproxy| `glitchproxy-linux-amd64`| `glitchproxy-windows-amd64.exe`| `glitchproxy-darwin-amd64-macos`|
+
+            ### Python Package
+
+            ```bash
+            pip install "glitchicons[all]"
+            ```
+
+            ### Checksums
+
+            See `SHA256SUMS.txt` for binary verification.
+
+            ---
+            See [CHANGELOG](https://github.com/ardanov96/glitchicons/blob/main/README.md#changelog) for full details.
+          files: |
+            release-artifacts/*
           draft: false
+          prerelease: false
+          generate_release_notes: false

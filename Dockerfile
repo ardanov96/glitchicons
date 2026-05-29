@@ -1,65 +1,107 @@
-# ============================================================
-#  GLITCHICONS — Dockerfile
-#  Multi-stage build: tools + python app
-# ============================================================
+# Dockerfile — Glitchicons v1.4.0
+# Multi-stage build: Go binaries + Python runtime
+#
+# Stages:
+#   1. go-builder   — compile all 6 Go binaries (statically linked)
+#   2. py-deps      — install Python dependencies
+#   3. runtime      — final slim image with everything
+#
+# Usage:
+#   docker build -t glitchicons:1.4.0 .
+#   docker run --rm glitchicons:1.4.0 glitchicons status
+#   docker run --rm glitchicons:1.4.0 glitchscan --target target.com --ports 1-1024
+#   docker run --rm -v $(pwd)/findings:/app/findings glitchicons:1.4.0 siege --config /app/engagement.yaml
 
-FROM ubuntu:24.04 AS base
+# ── Stage 1: Go builder ───────────────────────────────────
+FROM golang:1.22-alpine AS go-builder
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PATH="/root/go/bin:/home/claude/.npm-global/bin:$PATH"
+WORKDIR /build
 
-# System dependencies
-RUN apt-get update && apt-get install -y \
-    python3 python3-pip python3-venv \
-    git curl wget \
-    afl++ gdb valgrind \
-    golang-go \
-    tor proxychains4 \
-    hydra \
-    libssl-dev \
-    gcov \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+# Copy all Go modules
+COPY glitchrace/   ./glitchrace/
+COPY glitchscan/   ./glitchscan/
+COPY glitchfuzz/   ./glitchfuzz/
+COPY glitchdns/    ./glitchdns/
+COPY glitchtls/    ./glitchtls/
+COPY glitchproxy/  ./glitchproxy/
 
-# Go tools (ProjectDiscovery suite)
-FROM base AS go-tools
-RUN go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
-    go install github.com/projectdiscovery/httpx/cmd/httpx@latest && \
-    go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest && \
-    go install github.com/projectdiscovery/katana/cmd/katana@latest
+# Build all binaries — statically linked, stripped
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 
-# Download nuclei templates
-RUN nuclei -update-templates || true
+RUN cd glitchrace  && go mod tidy && go build -ldflags="-s -w" -o /out/glitchrace  . && echo "✓ glitchrace"
+RUN cd glitchscan  && go mod tidy && go build -ldflags="-s -w" -o /out/glitchscan  . && echo "✓ glitchscan"
+RUN cd glitchfuzz  && go mod tidy && go build -ldflags="-s -w" -o /out/glitchfuzz  . && echo "✓ glitchfuzz"
+RUN cd glitchdns   && go mod tidy && go build -ldflags="-s -w" -o /out/glitchdns   . && echo "✓ glitchdns"
+RUN cd glitchtls   && go mod tidy && go build -ldflags="-s -w" -o /out/glitchtls   . && echo "✓ glitchtls"
+RUN cd glitchproxy && go mod tidy && go build -ldflags="-s -w" -o /out/glitchproxy . && echo "✓ glitchproxy"
 
-# Final stage
-FROM base AS final
+# ── Stage 2: Python dependencies ─────────────────────────
+FROM python:3.12-slim AS py-deps
 
 WORKDIR /app
 
-# Copy Go binaries from go-tools stage
-COPY --from=go-tools /root/go/bin/ /usr/local/bin/
-COPY --from=go-tools /root/nuclei-templates/ /root/nuclei-templates/
+# Install system deps for dnspython + grpcio
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Python deps
-COPY requirements.txt .
-RUN python3 -m venv /app/.venv && \
-    /app/.venv/bin/pip install --upgrade pip && \
-    /app/.venv/bin/pip install -r requirements.txt && \
-    /app/.venv/bin/pip install pytest pytest-cov ruff bandit responses
+COPY pyproject.toml README.md ./
+COPY glitchicons/   ./glitchicons/
+COPY modules/       ./modules/
 
-ENV PATH="/app/.venv/bin:$PATH"
+RUN pip install --no-cache-dir -e ".[all]" \
+    && pip install --no-cache-dir grpcio grpcio-reflection dnspython websocket-client
 
-# Copy source
-COPY . .
+# ── Stage 3: Runtime ──────────────────────────────────────
+FROM python:3.12-slim AS runtime
 
-# Default output dir
-RUN mkdir -p /app/findings /app/engagements
+LABEL maintainer="ardanov96@gmail.com" \
+      version="1.4.0" \
+      description="GLITCHICONS — AI-Powered Security Research Platform"
 
-VOLUME ["/app/findings", "/app/engagements"]
+WORKDIR /app
 
-EXPOSE 8080
+# System runtime deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tor \
+    proxychains4 \
+    gdb \
+    curl \
+    wget \
+    ncat \
+    dnsutils \
+    && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["python3", "glitchicons.py"]
+# Copy Python install from py-deps stage
+COPY --from=py-deps /usr/local/lib/python3.12 /usr/local/lib/python3.12
+COPY --from=py-deps /usr/local/bin/glitchicons /usr/local/bin/glitchicons
+COPY --from=py-deps /app /app
+
+# Copy Go binaries from go-builder stage
+COPY --from=go-builder /out/glitchrace  /usr/local/bin/glitchrace
+COPY --from=go-builder /out/glitchscan  /usr/local/bin/glitchscan
+COPY --from=go-builder /out/glitchfuzz  /usr/local/bin/glitchfuzz
+COPY --from=go-builder /out/glitchdns   /usr/local/bin/glitchdns
+COPY --from=go-builder /out/glitchtls   /usr/local/bin/glitchtls
+COPY --from=go-builder /out/glitchproxy /usr/local/bin/glitchproxy
+
+# Make binaries executable
+RUN chmod +x \
+    /usr/local/bin/glitchrace \
+    /usr/local/bin/glitchscan \
+    /usr/local/bin/glitchfuzz \
+    /usr/local/bin/glitchdns  \
+    /usr/local/bin/glitchtls  \
+    /usr/local/bin/glitchproxy
+
+# Create findings output directory
+RUN mkdir -p /app/findings /app/engagements /app/wordlists
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD glitchicons version || exit 1
+
+# Default: show status
+ENTRYPOINT ["glitchicons"]
 CMD ["status"]
