@@ -25,7 +25,7 @@ Quick start:
     path = reporter.generate()
 """
 
-__version__ = "1.0.0"
+__version__ = "1.4.0"
 __author__  = "ardanov96"
 __license__ = "MIT"
 __url__     = "https://github.com/ardanov96/glitchicons"
