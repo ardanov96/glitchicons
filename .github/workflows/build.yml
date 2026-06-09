@@ -1,0 +1,119 @@
+# .github/workflows/build.yml
+# Build all 37 Go binaries on every push to main.
+# Verifies that all binaries compile cleanly on Linux, macOS, and Windows.
+
+name: Go Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  GO_VERSION: "1.22"
+
+jobs:
+  build:
+    name: Build · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build all binaries (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          set -e
+          BINS=(
+            glitchrace glitchscan glitchfuzz glitchfuzz2 glitchdns glitchtls glitchproxy
+            glitchsmb glitchssh glitchrdp glitchldap glitchsnmp glitchftp glitchvnc glitchwmi
+            glitchagent glitchd glitchbrute glitchkerberos glitchdesync glitchhttp2
+            glitchrelay glitchids glitchexploit glitchpcap glitchwatcher glitchfuzz3
+            glitchquic glitchimplant glitchpivot
+            glitchevade glitchcloak glitchsupply glitchcloud glitchiot glitchai glitchorchestrator
+          )
+          mkdir -p bin
+          FAILED=0
+          for bin in "${BINS[@]}"; do
+            if [ -d "$bin" ]; then
+              echo "Building $bin..."
+              if go build -ldflags="-s -w" -o "bin/$bin" "./$bin/"; then
+                echo "  ✓ $bin"
+              else
+                echo "  ✗ $bin FAILED"
+                FAILED=$((FAILED + 1))
+              fi
+            else
+              echo "  ~ $bin (directory not found, skipping)"
+            fi
+          done
+          echo ""
+          echo "Build complete. Failures: $FAILED"
+          exit $FAILED
+
+      - name: Build all binaries (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $bins = @(
+            "glitchrace","glitchscan","glitchfuzz","glitchfuzz2","glitchdns","glitchtls","glitchproxy",
+            "glitchsmb","glitchssh","glitchrdp","glitchldap","glitchsnmp","glitchftp","glitchvnc","glitchwmi",
+            "glitchagent","glitchd","glitchbrute","glitchkerberos","glitchdesync","glitchhttp2",
+            "glitchrelay","glitchids","glitchexploit","glitchpcap","glitchwatcher","glitchfuzz3",
+            "glitchquic","glitchimplant","glitchpivot",
+            "glitchevade","glitchcloak","glitchsupply","glitchcloud","glitchiot","glitchai","glitchorchestrator"
+          )
+          New-Item -ItemType Directory -Force -Path bin | Out-Null
+          $failed = 0
+          foreach ($bin in $bins) {
+            if (Test-Path $bin) {
+              Write-Host "Building $bin..."
+              go build -ldflags="-s -w" -o "bin/$bin.exe" "./$bin/"
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "  OK $bin"
+              } else {
+                Write-Host "  FAIL $bin"
+                $failed++
+              }
+            } else {
+              Write-Host "  SKIP $bin (not found)"
+            }
+          }
+          Write-Host "Failures: $failed"
+          exit $failed
+
+      - name: Version check (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          for f in bin/glitch*; do
+            [ -x "$f" ] && echo "$(basename $f): $($f --version 2>/dev/null || echo 'no --version')"
+          done
+
+      - name: Version check (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem bin\glitch*.exe | ForEach-Object {
+            $v = & $_.FullName --version 2>$null
+            Write-Host "$($_.Name): $v"
+          }
+
+      - name: Upload binaries as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: glitchicons-binaries-${{ matrix.os }}
+          path: bin/
+          retention-days: 14
