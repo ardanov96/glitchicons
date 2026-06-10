@@ -9,11 +9,12 @@
 
 **From recon to boardroom-ready report — powered by AI.**
 
-[![Python](https://img.shields.io/badge/Python-3.12+-blue?style=flat-square)](https://python.org)
+[![Python Tests](https://github.com/ardanov96/glitchicons/actions/workflows/test.yml/badge.svg)](https://github.com/ardanov96/glitchicons/actions/workflows/test.yml)
+[![Go Build](https://github.com/ardanov96/glitchicons/actions/workflows/build.yml/badge.svg)](https://github.com/ardanov96/glitchicons/actions/workflows/build.yml)
+[![Latest Release](https://img.shields.io/github/v/release/ardanov96/glitchicons?color=A855F7&style=flat-square)](https://github.com/ardanov96/glitchicons/releases/latest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ardanov96/glitchicons)](https://goreportcard.com/report/github.com/ardanov96/glitchicons)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square)](https://golang.org)
-[![Tests](https://img.shields.io/badge/Tests-1757%20passed-30D158?style=flat-square)](#)
 [![Binaries](https://img.shields.io/badge/Go%20Binaries-37-64D2FF?style=flat-square)](#go-binaries)
-[![Version](https://img.shields.io/badge/Version-v5.5.0-A855F7?style=flat-square)](#changelog)
 [![License](https://img.shields.io/badge/License-MIT-white?style=flat-square)](LICENSE)
 
 [Quick Start](#quick-start) · [Python Modules](#python-modules) · [Go Binaries](#go-binaries) · [Roadmap](#roadmap) · [Contributing](CONTRIBUTING.md)
