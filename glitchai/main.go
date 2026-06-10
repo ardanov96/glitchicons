@@ -570,7 +570,7 @@ func main() {
 		out := map[string]interface{}{
 			"mode": mode, "provider": p.Name, "model": p.Model,
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
-			"result": result, "version": Version,
+			"result": result, "scanner_version": Version,
 		}
 		data, _ := json.MarshalIndent(out, "", "  ")
 		os.WriteFile(*outputF, data, 0644)

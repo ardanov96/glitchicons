@@ -729,7 +729,7 @@ func main() {
 			"targets":    len(cfg.Targets),
 			"summary":    o.aggr.Summary(),
 			"findings":   findings,
-			"version":    Version,
+			"scanner_version": Version,
 		}
 		data, _ := json.MarshalIndent(out, "", "  ")
 		if *outputF != "" {
