@@ -2,74 +2,65 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-|---------|--------------------|
-| 2.x     | ✅ Full support    |
-| 1.9.x   | ✅ Full support    |
-| 1.x     | ⚠️ Critical only  |
-| < 1.0   | ❌ No support     |
-
----
+| Version | Supported |
+|---------|-----------|
+| v5.5.x  | ✅ Current |
+| v5.x    | ✅ Active  |
+| < v5.0  | ❌ No longer maintained |
 
 ## Reporting a Vulnerability
 
-If you discover a security issue **in GLITCHICONS itself**
-(not in a target you are scanning), please follow responsible disclosure:
+If you discover a security vulnerability **in Glitchicons itself** (not a finding from running it), please report it responsibly.
 
-### Do NOT:
-- ❌ Open a public GitHub issue
-- ❌ Post on social media before a fix is released
-- ❌ Exploit the issue outside your own test environment
+**Do NOT open a public GitHub issue for security vulnerabilities.**
 
-### DO:
-1. **Email directly:** ardanov96@gmail.com
-2. **Subject:** `[SECURITY] Brief description`
-3. **Include:**
-   - Vulnerability description
-   - Steps to reproduce
-   - Potential impact
-   - Suggested fix (optional)
+### How to report
 
-### Response Timeline:
-- **Acknowledgment:** within 48 hours
-- **Initial assessment:** within 7 days
-- **Fix timeline:** depends on severity (critical = < 14 days)
-- **Credit:** your name will be mentioned in release notes (if desired)
+Email: **ardanov96@gmail.com**
 
----
+Subject line: `[SECURITY] Glitchicons - Brief description`
 
-## Scope
+Include:
+- Glitchicons version affected
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
 
-**In scope:**
-- Code injection in any Python module or Go binary
-- Privilege escalation via CLI commands
-- Path traversal in output/file handling
-- Dependencies with active CVEs
-- Authentication bypass in the web dashboard
+### Response timeline
 
-**Out of scope:**
-- Vulnerabilities in external tools (Ollama, afl++, etc.) — report to upstream
-- Issues in targets scanned using Glitchicons
-- Social engineering
+| Step | Timeline |
+|------|----------|
+| Acknowledgement | Within 48 hours |
+| Initial assessment | Within 7 days |
+| Fix + release | Within 30 days (critical: 7 days) |
+| CVE request | If applicable |
 
----
+### What qualifies
+
+- Code execution via crafted input to Glitchicons itself
+- Authentication bypass in `glitchagent` or `glitchorchestrator` APIs
+- Path traversal in binary dispatching (`glitchd`)
+- Credential exposure via log output
+- `glitchimplant` engagement token forgery
+
+### What does NOT qualify
+
+- Findings produced by running Glitchicons against a target (that's the tool working correctly)
+- Issues in third-party dependencies (report to the upstream project)
+- Issues requiring physical access to the machine running Glitchicons
 
 ## Ethical Use
 
-GLITCHICONS is built for **authorized security testing only**.
+Glitchicons is built for **authorized penetration testing only**.
 
-Users are responsible for ensuring they have explicit written permission before running any scan against any system. Unauthorized use against systems you do not own or have permission to test is illegal and strictly against the intended purpose of this project.
+- Always obtain explicit written permission before scanning any system
+- `glitchimplant` requires a signed HMAC engagement token — do not circumvent this
+- `glitchcloud` requires your own cloud credentials — it cannot scan others' environments
+- Unauthorized use is illegal under computer fraud laws in most jurisdictions
 
-The maintainers are not responsible for any misuse of this tool.
-
----
-
-## Acknowledgments
-
-Security researchers who responsibly disclose vulnerabilities will be listed here.
-
-*(None yet — be the first.)*
+The maintainers are not responsible for misuse of this tool.
 
 ---
 
-*Built in public. Security taken seriously.*
+MIT License © 2026 GLITCHICONS

@@ -1,295 +1,372 @@
-# Contributing to GLITCHICONS ⬡
+# Contributing to Glitchicons
 
-Thank you for your interest in contributing to GLITCHICONS!
-This project is built in public, MIT licensed, and welcomes contributors of all skill levels.
+> Where others probe, we siege. — ARDATRON
+
+Thank you for contributing to Glitchicons. This guide covers everything you need to submit a quality pull request — whether you're adding a Python module, a Go binary, or fixing a bug.
+
+---
+
+## Table of Contents
+
+- [Setup](#setup)
+- [Project Structure](#project-structure)
+- [Contributing a Python Module](#contributing-a-python-module)
+- [Contributing a Go Binary](#contributing-a-go-binary)
+- [Tests](#tests)
+- [Pull Request Requirements](#pull-request-requirements)
+- [Contributor Ranks](#contributor-ranks)
+- [Code of Conduct](#code-of-conduct)
+
+---
+
+## Setup
+
+```bash
+git clone https://github.com/ardanov96/glitchicons.git
+cd glitchicons
+
+python3 -m venv .venv
+source .venv/bin/activate        # Linux/macOS
+# .\.venv\Scripts\Activate.ps1  # Windows
+
+pip install -e ".[dev]"
+pytest tests/ -q
+# Expected: 1757 passed, 0 failures
+```
+
+Go binaries (optional — only if contributing to Go layer):
+
+```bash
+# Go 1.22+ required
+go version
+
+# Build any binary
+cd glitchscan && go build -ldflags="-s -w" -o ../bin/glitchscan . && cd ..
+.\bin\glitchscan.exe --version  # Windows
+./bin/glitchscan --version      # Linux/macOS
+```
+
+---
+
+## Project Structure
+
+```
+glitchicons/
+├── modules/               # Python modules
+│   ├── inject/            # Web attack modules
+│   ├── recon/             # Reconnaissance
+│   ├── intelligence/      # LLM + threat intel
+│   ├── auth/              # Authentication attacks
+│   ├── cloud/             # Cloud security
+│   ├── report/            # Reporting + compliance
+│   └── core/              # Platform (DB, scheduler, webhooks)
+├── tests/                 # Pytest test suite (1757 tests)
+├── bin/                   # Compiled Go binaries
+├── glitchscan/            # Go binary source (one dir per binary)
+├── glitchsmb/
+├── ...
+├── .github/workflows/     # CI/CD (test + build + release)
+└── README.md
+```
+
+---
+
+## Contributing a Python Module
+
+### 1. Create the module
+
+```python
+# modules/inject/my_module.py
+
+from dataclasses import dataclass, field
+from typing import Optional
+import httpx
+
+@dataclass
+class MyModuleResult:
+    target: str
+    findings: list = field(default_factory=list)
+    errors: list   = field(default_factory=list)
+
+class MyModule:
+    """
+    One-line description of what this module does.
+
+    Args:
+        target: Target URL or host
+        timeout: Request timeout in seconds
+    """
+
+    def __init__(self, target: str, timeout: int = 10):
+        self.target  = target
+        self.timeout = timeout
+
+    def run(self) -> MyModuleResult:
+        result = MyModuleResult(target=self.target)
+        # ... implementation
+        return result
+```
+
+### 2. Write tests
+
+```python
+# tests/test_my_module.py
+import pytest
+from modules.inject.my_module import MyModule, MyModuleResult
+
+class TestMyModule:
+    def test_init(self):
+        m = MyModule("https://example.com")
+        assert m.target == "https://example.com"
+        assert m.timeout == 10
+
+    def test_run_returns_result(self):
+        m = MyModule("https://example.com")
+        result = m.run()
+        assert isinstance(result, MyModuleResult)
+        assert isinstance(result.findings, list)
+
+    def test_finding_structure(self):
+        # If your module produces findings, verify structure
+        m = MyModule("https://example.com")
+        result = m.run()
+        for f in result.findings:
+            assert "title" in f
+            assert "severity" in f
+            assert f["severity"] in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")
+```
+
+**Minimum test coverage: 3 tests per module.**
+
+---
+
+## Contributing a Go Binary
+
+### 1. Create the binary directory
+
+```bash
+mkdir glitchmynew
+cd glitchmynew
+```
+
+### 2. go.mod (standard library only preferred)
+
+```
+module glitchmynew
+
+go 1.22
+```
+
+### 3. main.go template
+
+```go
+// glitchmynew/main.go
+// GLITCHICONS — One-line description
+//
+// Longer description of what this binary does,
+// what protocols it tests, and what findings it produces.
+//
+// Usage:
+//   glitchmynew --target https://target.com --output findings.json
+//   glitchmynew --version
+
+package main
+
+import (
+    "encoding/json"
+    "flag"
+    "fmt"
+    "os"
+    "time"
+)
+
+const Version = "5.5.0" // use current platform version
+
+type Finding struct {
+    Title       string  `json:"title"`
+    Severity    string  `json:"severity"`   // CRITICAL|HIGH|MEDIUM|LOW|INFO
+    CVSS        float64 `json:"cvss"`
+    CWE         string  `json:"cwe"`
+    Target      string  `json:"target"`
+    Description string  `json:"description"`
+    Evidence    string  `json:"evidence"`
+    Remediation string  `json:"remediation"`
+    Source      string  `json:"source"`     // "module:glitchmynew"
+}
+
+type ScanResult struct {
+    Target    string    `json:"target"`
+    Timestamp string    `json:"timestamp"`
+    Findings  []Finding `json:"findings"`
+    Version   string    `json:"scanner_version"`
+}
+
+func scan(target string) ScanResult {
+    result := ScanResult{
+        Target:    target,
+        Timestamp: time.Now().UTC().Format(time.RFC3339),
+        Findings:  []Finding{},
+        Version:   Version,
+    }
+    // ... implementation
+    return result
+}
+
+func main() {
+    target  := flag.String("target",  "", "Target URL or host (required)")
+    output  := flag.String("output",  "", "Output JSON file")
+    verbose := flag.Bool("verbose",   false, "Verbose output")
+    ver     := flag.Bool("version",   false, "Print version")
+    flag.Parse()
+
+    if *ver {
+        fmt.Printf("glitchmynew v%s\n", Version)
+        os.Exit(0)
+    }
+    if *target == "" {
+        fmt.Fprintln(os.Stderr, "Usage: glitchmynew --target <target>")
+        os.Exit(1)
+    }
+
+    _ = verbose
+    result := scan(*target)
+
+    data, _ := json.MarshalIndent(result, "", "  ")
+    if *output != "" {
+        os.WriteFile(*output, data, 0644)
+        fmt.Printf("[+] Saved to %s\n", *output)
+    } else {
+        fmt.Println(string(data))
+    }
+}
+```
+
+### 4. Register in glitchd
+
+Add your binary to `glitchd/main.go` → `BinaryRegistry`:
+
+```go
+"glitchmynew": {
+    Name:        "glitchmynew",
+    Protocol:    "HTTP",
+    Description: "One-line description",
+    Flags:       []string{"--target", "--timeout", "--output"},
+    Category:    "recon",   // recon|protocol|exploit|fuzz|credentials|cloud|iot|etc
+    Tier:        "4",
+    Since:       "v5.6",
+},
+```
+
+### 5. Required flags
+
+Every Go binary **must** support:
+
+| Flag | Description |
+|------|-------------|
+| `--target` | Target host or URL |
+| `--output` | JSON output file path |
+| `--verbose` | Verbose logging |
+| `--version` | Print version string and exit |
+
+### 6. Required output schema
+
+```json
+{
+  "target": "https://example.com",
+  "timestamp": "2026-06-10T00:00:00Z",
+  "findings": [
+    {
+      "title": "Descriptive finding title",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "cwe": "CWE-200",
+      "target": "https://example.com",
+      "description": "What was found and why it matters",
+      "evidence": "Raw output / response excerpt proving the finding",
+      "remediation": "Specific fix recommendation",
+      "source": "module:glitchmynew"
+    }
+  ],
+  "scanner_version": "5.5.0"
+}
+```
+
+---
+
+## Tests
+
+Run the full test suite before submitting:
+
+```bash
+# All tests
+pytest tests/ -q --tb=short
+
+# Specific module
+pytest tests/test_my_module.py -v
+
+# Coverage (optional but appreciated)
+pytest tests/ --cov=modules --cov-report=term-missing -q
+```
+
+**CI will fail if any test fails.** All 1757 existing tests must still pass after your change.
+
+---
+
+## Pull Request Requirements
+
+Before opening a PR, verify:
+
+- [ ] `pytest tests/ -q` passes (0 failures)
+- [ ] New module has ≥3 tests
+- [ ] Go binary compiles: `go build -ldflags="-s -w" -o bin/glitchmynew .`
+- [ ] `--version` flag works and prints correct version
+- [ ] JSON output matches standard Finding schema
+- [ ] Registered in `glitchd/main.go` BinaryRegistry
+- [ ] PR title follows: `feat:`, `fix:`, `docs:`, `ci:`, `refactor:`
+
+### PR template
+
+```
+## What does this PR do?
+Brief description.
+
+## Type
+- [ ] New Python module
+- [ ] New Go binary
+- [ ] Bug fix
+- [ ] Documentation
+
+## Testing
+- Tests added: N
+- All 1757 existing tests pass: ✅
+
+## Checklist
+- [ ] --version flag works
+- [ ] JSON output matches Finding schema
+- [ ] Registered in glitchd BinaryRegistry (Go binary only)
+```
 
 ---
 
 ## Contributor Ranks
 
-```
-RECRUIT    → First PR merged
-OPERATIVE  → 5 PRs merged
-COMMANDER  → 15 PRs merged + module ownership
-WARLORD    → Core maintainer
-```
+| Rank | Requirement |
+|------|-------------|
+| **RECRUIT** | First PR merged |
+| **OPERATIVE** | 5 PRs merged |
+| **COMMANDER** | 15 PRs merged + module ownership |
+| **WARLORD** | Core maintainer (invited) |
 
 ---
 
-## Quick Start for Contributors
+## Code of Conduct
 
-### 1. Fork & Clone
-
-```bash
-git clone https://github.com/YOUR_USERNAME/glitchicons.git
-cd glitchicons
-```
-
-### 2. Set Up Dev Environment
-
-```bash
-# Python venv
-python3 -m venv .venv
-source .venv/bin/activate          # Linux/macOS
-# .\.venv\Scripts\Activate.ps1     # Windows PowerShell
-
-# Install all dependencies + dev tools
-pip install -e ".[dev]"
-pip install grpcio grpcio-reflection dnspython websocket-client
-
-# Optional: Web Dashboard
-pip install fastapi uvicorn
-```
-
-### 3. Verify Setup
-
-```bash
-# Run test suite (should be 1131 passed, 0 failures)
-pytest tests/ -q --tb=short
-
-# Lint
-ruff check .
-
-# Security scan
-bandit -r glitchicons/ modules/ -x tests -ll -q
-```
-
-### 4. Build Go Binaries (optional)
-
-```bash
-cd glitchsmb  && go build -o ../bin/glitchsmb  . && cd ..
-cd glitchssh  && go build -o ../bin/glitchssh  . && cd ..
-cd glitchrdp  && go build -o ../bin/glitchrdp  . && cd ..
-# repeat for glitchrace, glitchscan, glitchfuzz, glitchdns, glitchtls, glitchproxy
-```
+- Glitchicons is for **authorized security testing only**
+- Do not submit modules that enable unauthorized access
+- All offensive capabilities must include ethical use documentation
+- Be respectful in code reviews and discussions
+- Security vulnerabilities in Glitchicons itself → see [SECURITY.md](SECURITY.md)
 
 ---
 
-## Development Workflow
-
-### Branch Naming
-
-```
-feature/module-name       # new feature or module
-fix/bug-description       # bug fix
-test/module-name          # add/improve tests
-docs/page-name            # documentation update
-refactor/module-name      # refactor without new features
-```
-
-### Commit Message Format
-
-```
-type(scope): short description
-
-feat(saml): add signature wrapping (XSW) attack
-fix(cloud): handle S3 XML namespace in listing parse
-test(pkce): add weak code_verifier test cases
-docs(readme): update Go binary build instructions
-refactor(async): extract rate limiter to separate class
-```
-
-### Pull Request Process
-
-1. **Create a branch** from `main`
-2. **Write tests** for new code — required for all new modules
-3. **Run** `pytest tests/` — all tests must pass
-4. **Run** `ruff check .` — no lint errors
-5. **Push** to your fork
-6. **Open a PR** to `main` with a clear description
-
-**PR Requirements:**
-- All existing tests must pass (1131+, 0 failures)
-- New modules must include unit tests
-- Mock all HTTP calls — no real network calls in unit tests
-- Follow existing module structure (see below)
-
-**Review SLA:** PRs reviewed within 72 hours.
-
----
-
-## Adding a New Python Module
-
-Standard structure for a new module:
-
-```python
-# modules/category/module_name.py
-
-"""
-Module Name — Short description.
-
-Usage:
-    from modules.category.module_name import ModuleName
-    findings = ModuleName(target="https://target.com").run()
-
-Author: your-username
-"""
-
-import json
-from datetime import datetime, timezone
-from pathlib import Path
-
-import httpx
-from rich.console import Console
-
-console = Console()
-
-
-def _finding(title, severity, cvss, cwe, description, evidence, remediation, target, source="module_name"):
-    assert severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")
-    assert 0.0 <= cvss <= 10.0
-    assert cwe.startswith("CWE-")
-    return {
-        "title": title, "severity": severity, "cvss": cvss, "cwe": cwe,
-        "target": target, "description": description, "evidence": evidence,
-        "remediation": remediation, "source": f"module:{source}",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-class ModuleName:
-    """Module description."""
-
-    def __init__(self, target: str, output_dir: str = "./findings"):
-        self.target     = target
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.client     = httpx.Client(timeout=10, verify=False)
-
-    def run(self) -> list[dict]:
-        """Main entry point. Returns list of findings."""
-        console.print(f"\n  [bold cyan]ModuleName[/bold cyan] → {self.target}")
-        findings = []
-        # ... your logic here
-        self._save(findings)
-        return findings
-
-    def _save(self, findings: list[dict]) -> Path:
-        out = self.output_dir / f"module_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        out.write_text(json.dumps({"target": self.target, "findings": findings}, indent=2))
-        return out
-```
-
-And the test file:
-
-```python
-# tests/test_module_name.py
-
-import pytest
-from unittest.mock import patch, MagicMock
-from modules.category.module_name import ModuleName, _finding
-
-
-class TestFinding:
-
-    @pytest.mark.unit
-    def test_valid_finding(self):
-        f = _finding("T", "HIGH", 7.5, "CWE-89", "d", "e", "r", "t")
-        assert f["severity"] == "HIGH"
-
-    @pytest.mark.unit
-    def test_invalid_severity_raises(self):
-        with pytest.raises(AssertionError):
-            _finding("T", "INVALID", 7.5, "CWE-89", "d", "e", "r", "t")
-
-
-class TestModuleName:
-
-    @pytest.fixture
-    def module(self, tmp_path):
-        return ModuleName(target="https://target.com", output_dir=str(tmp_path))
-
-    @pytest.mark.unit
-    def test_init(self, module):
-        assert "target.com" in module.target
-
-    @pytest.mark.unit
-    def test_run_returns_list(self, module):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.text = "{}"
-        with patch.object(module.client, "get", return_value=mock_resp):
-            findings = module.run()
-        assert isinstance(findings, list)
-```
-
----
-
-## Adding a Go Binary
-
-New Go binaries go in their own directory at the project root (e.g. `glitchxxx/`).
-
-**Requirements:**
-- `main.go` + `go.mod` (Go 1.22+)
-- Standard library preferred; minimal external dependencies
-- `--version` flag returning `glitchxxx v<VERSION>`
-- JSON output with `findings` array matching the finding schema
-- Flags: `--target`, `--timeout`, `--output`, `--verbose`, `--version`
-
-See `glitchsmb/`, `glitchssh/`, `glitchrdp/` for reference implementations.
-
----
-
-## Test Guidelines
-
-**Required for every PR touching a module:**
-
-- Unit test for happy path
-- Unit test for error/edge cases  
-- Mock all HTTP calls (use `unittest.mock`)
-- No real network calls in unit tests
-
-**Available markers:**
-
-```python
-@pytest.mark.unit         # pure unit test, no external dependencies
-@pytest.mark.integration  # requires network or external tools
-@pytest.mark.slow         # takes > 10 seconds
-```
-
-Run only unit tests:
-```bash
-pytest tests/ -m unit -q
-```
-
----
-
-## Good First Issues
-
-Check the [`good-first-issue`](https://github.com/ardanov96/glitchicons/issues?q=label%3Agood-first-issue) label on GitHub Issues.
-
-Good starting points:
-- Add new payload patterns to existing detectors
-- Improve error messages in existing modules
-- Add missing test cases for edge conditions
-- Fix typos in documentation
-- Add usage examples to README
-
----
-
-## Code Style
-
-- **Linter**: ruff (configured in `pyproject.toml`)
-- **Line length**: 100 characters
-- **Type hints**: required for public methods
-- **Docstrings**: at minimum one line per class and public method
-- **Comments**: English only
-
----
-
-## Security Issues
-
-If you find a security issue in GLITCHICONS itself,
-**do not open a public issue**. See [SECURITY.md](SECURITY.md).
-
----
-
-## Need Help?
-
-- 🐛 Bug? → [Open Issue](https://github.com/ardanov96/glitchicons/issues)
-- 💡 Idea? → [Start Discussion](https://github.com/ardanov96/glitchicons/discussions)
-- 📧 Direct? → ardanov96@gmail.com
-
----
-
-*Where others probe, we siege. — ARDATRON*
+Questions? Open a GitHub Discussion or reach out at ardanov96@gmail.com.
