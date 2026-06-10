@@ -44,6 +44,7 @@
 package main
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -52,6 +53,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -639,6 +643,67 @@ func cmdStatus(nodes []*Node) {
 
 // ── Main ──────────────────────────────────────────────────
 
+
+// ── AI Triage Integration ─────────────────────────────────
+
+// runAITriage pipes findings to glitchai for automatic prioritization.
+// Uses glitchai binary if available in PATH or same directory as orchestrator.
+func runAITriage(findingsFile, provider, model string, findings []Finding) {
+	fmt.Printf("\n[*] Running AI triage via glitchai (provider=%s)...\n", provider)
+
+	// Write findings to temp file if not already written
+	tmpFile := findingsFile
+	if tmpFile == "" {
+		tmpFile = fmt.Sprintf("%s/glitch_triage_%d.json", os.TempDir(), time.Now().UnixNano())
+		defer os.Remove(tmpFile)
+
+		out := map[string]interface{}{
+			"timestamp":       time.Now().UTC().Format(time.RFC3339),
+			"scanner_version": Version,
+			"findings":        findings,
+		}
+		data, _ := json.Marshal(out)
+		if err := os.WriteFile(tmpFile, data, 0644); err != nil {
+			fmt.Printf("[-] AI triage: cannot write temp file: %v\n", err)
+			return
+		}
+	}
+
+	// Find glitchai binary
+	glitchaiBin := "glitchai"
+	if runtime.GOOS == "windows" {
+		glitchaiBin = "glitchai.exe"
+	}
+
+	// Check same directory as orchestrator first
+	if execPath, err := os.Executable(); err == nil {
+		candidate := filepath.Join(filepath.Dir(execPath), glitchaiBin)
+		if _, err := os.Stat(candidate); err == nil {
+			glitchaiBin = candidate
+		}
+	}
+
+	// Build glitchai command
+	args := []string{"triage", "--findings", tmpFile, "--provider", provider}
+	if model != "" {
+		args = append(args, "--model", model)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, glitchaiBin, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	fmt.Println(strings.Repeat("─", 60))
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("[-] glitchai triage failed: %v\n", err)
+		fmt.Println("[!] Make sure glitchai is in PATH and Ollama is running (ollama serve)")
+	}
+	fmt.Println(strings.Repeat("─", 60))
+}
+
 func main() {
 	if len(os.Args) >= 2 && os.Args[1] == "init" {
 		fs := flag.NewFlagSet("init", flag.ExitOnError)
@@ -664,8 +729,11 @@ func main() {
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
 	configF  := fs.String("config",  "", "Orchestrator config JSON file (required)")
 	port     := fs.Int("port",       7330, "Dashboard HTTP port")
-	outputF  := fs.String("output",  "", "Output findings JSON (run mode)")
-	verbose  := fs.Bool("verbose",   false, "Verbose output")
+	outputF    := fs.String("output",     "", "Output findings JSON (run mode)")
+	aiTriage   := fs.Bool("ai-triage",  false, "Auto-run glitchai triage after scan completes")
+	aiProvider := fs.String("ai-provider", "ollama", "AI provider for triage: ollama|groq|anthropic|openai")
+	aiModel    := fs.String("ai-model",    "", "AI model override (default: auto per provider)")
+	verbose    := fs.Bool("verbose",      false, "Verbose output")
 	fs.Parse(args)
 
 	if *configF == "" && cmd != "init" {
@@ -737,6 +805,11 @@ func main() {
 			fmt.Printf("[+] Findings saved to %s\n", *outputF)
 		} else {
 			fmt.Println(string(data))
+		}
+
+		// Auto-triage with AI if requested
+		if *aiTriage && len(findings) > 0 {
+			runAITriage(*outputF, *aiProvider, *aiModel, findings)
 		}
 
 	case "status":
