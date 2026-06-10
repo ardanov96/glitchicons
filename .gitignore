@@ -67,3 +67,10 @@ wordlists/usernames.txt
 add_commands.py
 aw_corpus/
 wordlists/targeted_emails.txt
+
+OllamaSetup.exe
+build_go.ps1
+orchestrator_plan.json
+package-lock.json
+test_findings.json
+watch_sample.json
